@@ -1,0 +1,35 @@
+@startuml
+Actor User
+
+group Connecting
+    Activate Client
+    Client -> ESP32: Initiate BLE connection
+    ESP32 --> Client: Request BLE password
+    Client -> User: Display BLE password
+    User -> Client: Provide BLE password
+    Client -> ESP32: Provide BLE password
+    ESP32 -> ESP32: validate BLE password
+    ESP32 -> Client: Open Connection
+end
+
+group Selecting Credentials
+    
+end
+
+group Send Credentials to the client
+    Client -> ESP32: Initiate BLE connection
+    ESP32 --> Client: Request BLE password
+    Client -> User: Display BLE password
+    User -> Client: Provide BLE password
+    Client -> ESP32: Provide BLE password
+    ESP32 -> ESP32: validate BLE password
+    ESP32 -> Client: Open Connection
+end
+
+group Disconnect
+    ESP32 -> Client: Disconnect
+    deactivate Client
+    deactivate ESP32
+end
+
+@enduml

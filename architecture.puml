@@ -1,0 +1,14 @@
+@startuml
+[Client]
+[ESP32]
+[User]
+
+() "Bluetooth"
+() "Screen"
+
+Bluetooth - ESP32
+Screen - ESP32
+
+Client <--> Bluetooth
+User <-- Screen
+@enduml

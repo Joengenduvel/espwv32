@@ -7,6 +7,12 @@ A password vault you can take with you.
 * Encrypted storage
 * Secure communication
 
+### Current status
+* [x] BLE connection requires passcode
+* [ ] Secure BLE connection
+* [ ] Send username and password on button push
+* [ ] Store credentials securely on the device
+
 ## High Level Acrchitecture
 ![alt text](architecture.png "Logo Title Text 1")
 

@@ -9,6 +9,12 @@
 
 #include <Arduino.h>
 
+//pnp https://www.bluetooth.com/xml-viewer/?src=https://www.bluetooth.com/wp-content/uploads/Sitecore-Media-Library/Gatt/Xml/Characteristics/org.bluetooth.characteristic.pnp_id.xml
+#define SIG 0x02 //vendor ID source = USB Implementer’s Forum assigned Vendor ID value
+#define VENDOR_ID 0xe502
+#define PRODUCT_ID 0xa111
+#define PRODUCT_VERSION 0x0210
+
 
 //TODO: make private
 static const uint8_t _hidReportDescriptor[] = {
@@ -218,7 +224,7 @@ class BLEKeyboardCallbacks {
     virtual void authenticationInfo(uint32_t pin) = 0;
 };
 
-class BLEKeyboard : BLEServerCallbacks,  BLESecurityCallbacks, public Print {
+class BLEKeyboard : private BLEServerCallbacks,  private BLESecurityCallbacks, public Print {
   private:
     typedef struct
     {
@@ -263,7 +269,7 @@ class BLEKeyboard : BLEServerCallbacks,  BLESecurityCallbacks, public Print {
       this->inputKeyboard = hid->inputReport(0x01);
       hid->outputReport(0x01);
       hid->inputReport(0x02);
-      hid->pnp(0x02, 0xe502, 0xa111, 0x0210);
+      hid->pnp(SIG, VENDOR_ID, PRODUCT_ID, PRODUCT_VERSION);
       hid->hidInfo(0x00, 0x01);
       hid->reportMap((uint8_t*)_hidReportDescriptor, sizeof(_hidReportDescriptor));
       hid->startServices();

@@ -4,6 +4,8 @@
 
 BLEKeyboard* keyboard;
 uint32_t pinCode = 0;
+#define PAIR_MAX_DEVICES 20
+uint8_t pairedDeviceBtAddr[PAIR_MAX_DEVICES][6];
 
 class MyKeyboardCallbacks: public BLEKeyboardCallbacks {
     void authenticationInfo(uint32_t pin) {
@@ -33,8 +35,8 @@ String getDeviceId() {
   return String(String(high, HEX) + String(low, HEX)).c_str();
 }
 
-uint8_t getBatteryLevel(){
-  return map(M5.Axp.GetVapsData(),2500,3555,0,100);
+uint8_t getBatteryLevel() {
+  return map(M5.Axp.GetVapsData(), 2500, 3555, 0, 100);
 }
 
 void displayStartScreen() {
@@ -65,14 +67,21 @@ void loop() {
   M5.update();
 
   if (pinCode > 0) {
+    //Serial.println("pinscreen");
     displayPin();
   } else {
+    //Serial.println("startscreen");
     displayStartScreen();
   }
 
   if (M5.BtnA.wasPressed()) {
-    Serial.println("sending");
-    keyboard->write(3);
+    uint8_t i;
+    Serial.println("sending ");
+    
+
+    
+    keyboard->print("username\tpassword\n");
+    
   }
 
   if (M5.BtnA.pressedFor(1000)) {
@@ -85,12 +94,13 @@ void loop() {
 
   if (M5.BtnA.pressedFor(3000)) {
     //M5.Axp.DeepSleep(SLEEP_SEC(10));
+    keyboard->disconnect();
     Serial.println("Going to sleep");
 
   }
 
-  Serial.println(getBatteryLevel());
-  Serial.println(keyboard->isConnected());
+  //Serial.println(getBatteryLevel());
+  //Serial.println(keyboard->isConnected());
   keyboard->setBatteryLevel(getBatteryLevel());
-  delay(50);
+  //delay(33);
 }

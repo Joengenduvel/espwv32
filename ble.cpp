@@ -5,8 +5,9 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLESecurity.h>
+#include "Print.h"
 
-#include<Arduino.h>
+#include <Arduino.h>
 
 
 //TODO: make private
@@ -76,10 +77,73 @@ static const uint8_t _hidReportDescriptor[] = {
 };
 
 //TODO: make configurable
+//https://cdn.sparkfun.com/datasheets/Wireless/Bluetooth/RN-HID-User-Guide-v1.0r.pdf
 #define SHIFT 0x80
-const uint8_t _asciimap[128] =
+const uint8_t _asciimap[128] PROGMEM =
 {
-  
+  0x00,             // NUL
+  0x00,             // SOH
+  0x00,             // STX
+  0x00,             // ETX
+  0x00,             // EOT
+  0x00,             // ENQ
+  0x00,             // ACK
+  0x00,             // BEL
+  0x2a,     // BS Backspace
+  0x2b,     // TAB  Tab
+  0x28,     // LF Enter
+  0x00,             // VT
+  0x00,             // FF
+  0x00,             // CR
+  0x00,             // SO
+  0x00,             // SI
+  0x00,             // DEL
+  0x00,             // DC1
+  0x00,             // DC2
+  0x00,             // DC3
+  0x00,             // DC4
+  0x00,             // NAK
+  0x00,             // SYN
+  0x00,             // ETB
+  0x00,             // CAN
+  0x00,             // EM
+  0x00,             // SUB
+  0x00,             // ESC
+  0x00,             // FS
+  0x00,             // GS
+  0x00,             // RS
+  0x00,             // US
+
+  0x2c,      //  ' '
+  0x1e | SHIFT,  // !
+  0x34 | SHIFT,  // "
+  0x20 | SHIFT,  // #
+  0x21 | SHIFT,  // $
+  0x22 | SHIFT,  // %
+  0x24 | SHIFT,  // &
+  0x34,          // '
+  0x26 | SHIFT,  // (
+  0x27 | SHIFT,  // )
+  0x25 | SHIFT,  // *
+  0x2e | SHIFT,  // +
+  0x36,          // ,
+  0x2d,          // -
+  0x37,          // .
+  0x38,          // /
+  0x27,          // 0
+  0x1e,          // 1
+  0x1f,          // 2
+  0x20,          // 3
+  0x21,          // 4
+  0x22,          // 5
+  0x23,          // 6
+  0x24,          // 7
+  0x25,          // 8
+  0x26,          // 9
+  0x33 | SHIFT,    // :
+  0x33,          // ;
+  0x36 | SHIFT,    // <
+  0x2e,          // =
   0x37 | SHIFT,    // >
   0x38 | SHIFT,    // ?
   0x1f | SHIFT,    // @
@@ -148,12 +212,13 @@ const uint8_t _asciimap[128] =
   0       // DEL
 };
 
+
 class BLEKeyboardCallbacks {
   public:
     virtual void authenticationInfo(uint32_t pin) = 0;
 };
 
-class BLEKeyboard : BLEServerCallbacks,  BLESecurityCallbacks {
+class BLEKeyboard : BLEServerCallbacks,  BLESecurityCallbacks, public Print {
   private:
     typedef struct
     {
@@ -165,10 +230,13 @@ class BLEKeyboard : BLEServerCallbacks,  BLESecurityCallbacks {
     std::string deviceName;
     std::string deviceManufacturer;
     BLEHIDDevice* hid;
+    BLEServer* pServer;
     BLEKeyboardCallbacks* callbacks;
     bool connected = false;
     BLECharacteristic* inputKeyboard;
     KeyReport _keyReport;
+
+
 
   public:
     BLEKeyboard(std::string deviceName = "ESPWV32", std::string deviceManufacturer = "Espressif") {
@@ -177,7 +245,7 @@ class BLEKeyboard : BLEServerCallbacks,  BLESecurityCallbacks {
 
       BLEDevice::init(this->deviceName);
       BLEDevice::setEncryptionLevel(ESP_BLE_SEC_ENCRYPT_MITM);
-      BLEServer *pServer = BLEDevice::createServer();
+      this->pServer = BLEDevice::createServer();
       pServer->setCallbacks(this);
       BLEDevice::setSecurityCallbacks(this);
 
@@ -219,6 +287,9 @@ class BLEKeyboard : BLEServerCallbacks,  BLESecurityCallbacks {
 
     void onConnect(BLEServer* pServer)
     {
+      Serial.println("TryConnect");
+
+
       //TODO: Notify of incomming connection
     }
 
@@ -238,6 +309,7 @@ class BLEKeyboard : BLEServerCallbacks,  BLESecurityCallbacks {
     {
       //TODO notify we need to display the PIN
       if (callbacks != NULL) {
+        Serial.println("Show PIN");
         callbacks->authenticationInfo(pass_key);
       } else {
         Serial.println("No callback to notify");
@@ -246,7 +318,6 @@ class BLEKeyboard : BLEServerCallbacks,  BLESecurityCallbacks {
 
     bool onSecurityRequest()
     {
-
       return true;
     }
 
@@ -257,10 +328,37 @@ class BLEKeyboard : BLEServerCallbacks,  BLESecurityCallbacks {
         //TODO: Add device to the whitelist: esp_ble_gap_update_whitelist
         //TODO: Notify connection succeeded
         this->connected = true;
+        Serial.println("Connected");
+        std::map<uint16_t, conn_status_t> clientPeers = BLEDevice::getPeerDevices(true);
+        std::map<uint16_t, conn_status_t>::iterator clientPeersIterator = clientPeers.begin();
+        while (clientPeersIterator != clientPeers.end())
+        {
+          // Accessing KEY from element pointed by it.
+          uint16_t addr = clientPeersIterator->first;
+          // Accessing VALUE from element pointed by it.
+          conn_status_t status = clientPeersIterator->second;
+          Serial.println(addr);
+          // Increment the Iterator to point to next entry
+          clientPeersIterator++;
+        }
+        std::map<uint16_t, conn_status_t> serverPeers = BLEDevice::getPeerDevices(false);
+        std::map<uint16_t, conn_status_t>::iterator serverPeersIterator = serverPeers.begin();
+        while (serverPeersIterator != serverPeers.end())
+        {
+          // Accessing KEY from element pointed by it.
+          uint16_t addr = serverPeersIterator->first;
+          // Accessing VALUE from element pointed by it.
+          conn_status_t status = serverPeersIterator->second;
+          Serial.println(addr);
+          // Increment the Iterator to point to next entry
+          serverPeersIterator++;
+        }
+
       } else {
 
-        //TODD: disconnect pServer->disconnect(pServer->getConnId());
-        //TODO: Notify connection succeeded
+        disconnect();
+        //TODO: Notify connection failed
+        Serial.println("Disconnected");
       }
     }
 
@@ -270,8 +368,23 @@ class BLEKeyboard : BLEServerCallbacks,  BLESecurityCallbacks {
       return true;
     }
 
+    void disconnect() {
+      BLEDevice::removePeerDevice(pServer->getConnId(), true);
+      pServer->disconnect(pServer->getConnId());
+    }
+
     bool isConnected() {
       return this->connected;
+    }
+
+    char *bda2str(const uint8_t* bda, char *str, size_t size)
+    {
+      if (bda == NULL || str == NULL || size < 18) {
+        return NULL;
+      }
+      sprintf(str, "%02x:%02x:%02x:%02x:%02x:%02x",
+              bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
+      return str;
     }
 
     void sendReport(KeyReport* keys)
@@ -285,7 +398,8 @@ class BLEKeyboard : BLEServerCallbacks,  BLESecurityCallbacks {
 
     size_t press(uint8_t k)
     {
-      _keyReport.keys[0] = _asciimap[k];
+      _keyReport.modifiers = 0;
+      _keyReport.keys[0] = k;
       sendReport(&_keyReport);
       return 1;
     }
@@ -293,21 +407,6 @@ class BLEKeyboard : BLEServerCallbacks,  BLESecurityCallbacks {
     size_t release(uint8_t k)
     {
       uint8_t i;
-      if (k >= 136) {     // it's a non-printing key (not a modifier)
-        k = k - 136;
-      } else if (k >= 128) {  // it's a modifier key
-        _keyReport.modifiers &= ~(1 << (k - 128));
-        k = 0;
-      } else {        // it's a printing key
-        k = _asciimap[k];
-        if (!k) {
-          return 0;
-        }
-        if (k & 0x80) {             // it's a capital letter or other character reached with shift
-          _keyReport.modifiers &= ~(0x02);  // the left shift modifier
-          k &= 0x7F;
-        }
-      }
 
       // Test the key report to see if k is present.  Clear it if it exists.
       // Check all positions in case the key is present more than once (which it shouldn't be)
@@ -320,11 +419,23 @@ class BLEKeyboard : BLEServerCallbacks,  BLESecurityCallbacks {
       sendReport(&_keyReport);
       return 1;
     }
+    void releaseAll(void)
+    {
+      _keyReport.keys[0] = 0;
+      _keyReport.keys[1] = 0;
+      _keyReport.keys[2] = 0;
+      _keyReport.keys[3] = 0;
+      _keyReport.keys[4] = 0;
+      _keyReport.keys[5] = 0;
+      _keyReport.modifiers = 0;
+      sendReport(&_keyReport);
+    }
+
 
     size_t write(uint8_t c)
     {
-      uint8_t p = press(c);  // Keydown
-      release(c);            // Keyup
+      uint8_t p = press(_asciimap[c]);  // Keydown
+      release(_asciimap[c]);            // Keyup
       return p;              // just return the result of press() since release() almost always returns 1
     }
 
@@ -352,7 +463,7 @@ class BLEKeyboard : BLEServerCallbacks,  BLESecurityCallbacks {
     }
 
     void setCallbacks(BLEKeyboardCallbacks* callbacks) {
-      this->callbacks=callbacks;
+      this->callbacks = callbacks;
     }
 
 

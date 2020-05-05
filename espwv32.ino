@@ -1,13 +1,14 @@
 #include <M5StickC.h>
-#include "ble.cpp"
+#include "ble.h"
 
+//using namespace ble;
 
-BLEKeyboard* keyboard;
+ble::BLEKeyboard* keyboard;
 uint32_t pinCode = 0;
 #define PAIR_MAX_DEVICES 20
 uint8_t pairedDeviceBtAddr[PAIR_MAX_DEVICES][6];
 
-class MyKeyboardCallbacks: public BLEKeyboardCallbacks {
+class MyKeyboardCallbacks: public ble::BLEKeyboardCallbacks {
     void authenticationInfo(uint32_t pin) {
       Serial.println(pin);
       pinCode = pin;
@@ -22,7 +23,7 @@ void setup() {
 
   displayStartScreen();
 
-  keyboard = new BLEKeyboard(getDeviceId().c_str());
+  keyboard = new ble::BLEKeyboard(getDeviceId().c_str());
   keyboard->setCallbacks(new MyKeyboardCallbacks());
 }
 

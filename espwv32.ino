@@ -1,9 +1,12 @@
 #include <M5StickC.h>
 #include "ble.h"
+#include "display.h"
 
 //using namespace ble;
 
 ble::BLEKeyboard* keyboard;
+display::Display* screen;
+
 uint32_t pinCode = 0;
 #define PAIR_MAX_DEVICES 20
 uint8_t pairedDeviceBtAddr[PAIR_MAX_DEVICES][6];
@@ -11,7 +14,7 @@ uint8_t pairedDeviceBtAddr[PAIR_MAX_DEVICES][6];
 class MyKeyboardCallbacks: public ble::BLEKeyboardCallbacks {
     void authenticationInfo(uint32_t pin) {
       Serial.println(pin);
-      pinCode = pin;
+      screen->showPin(pin);
     }
 };
 
@@ -21,7 +24,9 @@ void setup() {
   Serial.begin(115200);
   M5.begin();
 
-  displayStartScreen();
+  screen = new display::Display();
+
+  screen->showStart(getDeviceId());
 
   keyboard = new ble::BLEKeyboard(getDeviceId().c_str());
   keyboard->setCallbacks(new MyKeyboardCallbacks());
@@ -44,53 +49,18 @@ uint8_t getBatteryPercentage() {
   return map(getBatteryVoltage(), 3500, 4125, 0, 100);
 }
 
-void displayStartScreen() {
-  M5.Lcd.fillScreen(BLACK);
-  M5.Lcd.setRotation(3);
-  M5.Lcd.setTextSize(1);
-  M5.Lcd.setCursor(0, 0);
-  M5.Lcd.print(getBatteryVoltage());
-  M5.Lcd.setCursor(0, 10);
-  M5.Lcd.print(getBatteryPercentage());
-  M5.Lcd.setCursor(0, 30);
-  M5.Lcd.setTextSize(2);
-  M5.Lcd.print(getDeviceId());
-}
-
-void displayPin() {
-
-  M5.Lcd.fillScreen(BLACK);
-  M5.Lcd.setRotation(3);
-  M5.Lcd.setTextSize(1);
-  M5.Lcd.setCursor(0, 0);
-  M5.Lcd.print(getBatteryVoltage());
-  M5.Lcd.setCursor(0, 10);
-  M5.Lcd.print(getBatteryPercentage());
-  M5.Lcd.setCursor(0, 10);
-  M5.Lcd.print("Please enter the following PIN:");
-  M5.Lcd.setCursor(0, 30);
-  M5.Lcd.setTextSize(2);
-  M5.Lcd.print(pinCode);
-}
 void loop() {
   M5.update();
-
-  if (pinCode > 0) {
-    //Serial.println("pinscreen");
-    displayPin();
-  } else {
-    //Serial.println("startscreen");
-    displayStartScreen();
-  }
+  screen->updateBatteryPercentage(getBatteryPercentage());
 
   if (M5.BtnA.wasPressed()) {
     uint8_t i;
     Serial.println("sending ");
-    
 
-    
+
+
     keyboard->print("username\tpassword\n");
-    
+
   }
 
   if (M5.BtnA.pressedFor(1000)) {

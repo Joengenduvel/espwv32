@@ -36,8 +36,12 @@ String getDeviceId() {
   return String(String(high, HEX) + String(low, HEX)).c_str();
 }
 
-uint8_t getBatteryLevel() {
-  return map(M5.Axp.GetVapsData(), 2500, 3555, 0, 100);
+uint32_t getBatteryVoltage() {
+  return (M5.Axp.GetVbatData() * 1.1);
+}
+
+uint8_t getBatteryPercentage() {
+  return map(getBatteryVoltage(), 3500, 4125, 0, 100);
 }
 
 void displayStartScreen() {
@@ -45,7 +49,9 @@ void displayStartScreen() {
   M5.Lcd.setRotation(3);
   M5.Lcd.setTextSize(1);
   M5.Lcd.setCursor(0, 0);
-  M5.Lcd.print(M5.Axp.GetVapsData());
+  M5.Lcd.print(getBatteryVoltage());
+  M5.Lcd.setCursor(0, 10);
+  M5.Lcd.print(getBatteryPercentage());
   M5.Lcd.setCursor(0, 30);
   M5.Lcd.setTextSize(2);
   M5.Lcd.print(getDeviceId());
@@ -57,7 +63,9 @@ void displayPin() {
   M5.Lcd.setRotation(3);
   M5.Lcd.setTextSize(1);
   M5.Lcd.setCursor(0, 0);
-  M5.Lcd.print(M5.Axp.GetVapsData());
+  M5.Lcd.print(getBatteryVoltage());
+  M5.Lcd.setCursor(0, 10);
+  M5.Lcd.print(getBatteryPercentage());
   M5.Lcd.setCursor(0, 10);
   M5.Lcd.print("Please enter the following PIN:");
   M5.Lcd.setCursor(0, 30);
@@ -102,6 +110,6 @@ void loop() {
 
   //Serial.println(getBatteryLevel());
   //Serial.println(keyboard->isConnected());
-  keyboard->setBatteryLevel(getBatteryLevel());
+  keyboard->setBatteryLevel(getBatteryPercentage());
   //delay(33);
 }

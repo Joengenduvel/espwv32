@@ -275,8 +275,6 @@ public:
 
     size_t write(const uint8_t *buffer, size_t size) ;
 
-    void sendText(std::string text) ;
-
     void setBatteryLevel(uint8_t level) ;
 
     void setCallbacks(BLEKeyboardCallbacks* callbacks);

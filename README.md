@@ -22,6 +22,7 @@ A password vault you can take with you.
 
 ## Hardware
 https://m5stack.com/products/stick-c
+https://docs.m5stack.com/#/en/arduino/arduino_api
 
 ## Inspiring reads:
 * https://github.com/espressif/arduino-esp32/blob/master/tools/sdk/include/mbedtls/mbedtls/aes.h

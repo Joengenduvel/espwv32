@@ -218,6 +218,8 @@ const uint8_t _asciimap[128] PROGMEM =
 class BLEKeyboardCallbacks {
   public:
     virtual void authenticationInfo(uint32_t pin = 0);
+    virtual void connected();
+    virtual void disconnected();
 };
 
 class BLEKeyboard : private BLEServerCallbacks,  private BLESecurityCallbacks, public Print {

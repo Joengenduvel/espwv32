@@ -64,7 +64,7 @@ using namespace ble;
     void BLEKeyboard::onDisconnect(BLEServer* pServer)
     {
       this->connected = false;
-      //TODO: Notify connection lost
+      callbacks->disconnected();
     }
 
     uint32_t BLEKeyboard::onPassKeyRequest()
@@ -96,43 +96,19 @@ using namespace ble;
         //TODO: Add device to the whitelist: esp_ble_gap_update_whitelist
         //TODO: Notify connection succeeded
         this->connected = true;
-        Serial.println("Connected");
-        std::map<uint16_t, conn_status_t> clientPeers = BLEDevice::getPeerDevices(true);
-        std::map<uint16_t, conn_status_t>::iterator clientPeersIterator = clientPeers.begin();
-        while (clientPeersIterator != clientPeers.end())
-        {
-          // Accessing KEY from element pointed by it.
-          uint16_t addr = clientPeersIterator->first;
-          // Accessing VALUE from element pointed by it.
-          conn_status_t status = clientPeersIterator->second;
-          Serial.println(addr);
-          // Increment the Iterator to point to next entry
-          clientPeersIterator++;
-        }
-        std::map<uint16_t, conn_status_t> serverPeers = BLEDevice::getPeerDevices(false);
-        std::map<uint16_t, conn_status_t>::iterator serverPeersIterator = serverPeers.begin();
-        while (serverPeersIterator != serverPeers.end())
-        {
-          // Accessing KEY from element pointed by it.
-          uint16_t addr = serverPeersIterator->first;
-          // Accessing VALUE from element pointed by it.
-          conn_status_t status = serverPeersIterator->second;
-          Serial.println(addr);
-          // Increment the Iterator to point to next entry
-          serverPeersIterator++;
-        }
+        callbacks->connected();
 
       } else {
 
         disconnect();
         //TODO: Notify connection failed
-        Serial.println("Disconnected");
       }
     }
 
     bool BLEKeyboard::onConfirmPIN(unsigned int v)
     {
-      //TODO: Error + disconenct
+      //TODO: Error
+      disconnect();
       return true;
     }
 

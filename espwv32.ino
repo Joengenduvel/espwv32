@@ -16,6 +16,15 @@ class MyKeyboardCallbacks: public ble::BLEKeyboardCallbacks {
       Serial.println(pin);
       screen->showPin(pin);
     }
+    
+    void connected(){
+      Serial.println("connected");
+      //screen->showPin(pin);
+    }
+    void disconnected(){
+      Serial.println("disconnected");
+      screen->showStart("");
+    }
 };
 
 void setup() {

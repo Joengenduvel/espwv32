@@ -37,6 +37,10 @@ class LockScreen : public GenericScreen {
     ScreenType getType() {
       return LOCK;
     }
+    
+    uint8_t* getCode(){
+      return _userPin;
+    }
   private:
     uint8_t _userPin[numberOfDigits];
     uint8_t _userPinIndex = 0;

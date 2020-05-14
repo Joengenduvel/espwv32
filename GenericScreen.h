@@ -1,5 +1,4 @@
 #include <M5StickC.h>
-#include "System.cpp"
 
 #ifndef MY_CLASS_GenericScreen // include guard
 #define MY_CLASS_GenericScreen
@@ -29,18 +28,8 @@ class GenericScreen {
         show();
         _needToRefresh = false;
       }
-      if (millis() % 77 == 0) {
-        updateBatteryPercentage(espwv32::System::getBatteryPercentage());
-        updateConnected(false);
-      }
       return _toNextScreen;
     }
-  private:
-    bool _needToRefresh = false;
-  protected:
-    bool _toNextScreen = false;
-
-
 
     void updateBatteryPercentage(uint8_t percentage = 0) {
       uint8_t posX = 129;
@@ -78,6 +67,10 @@ class GenericScreen {
       M5.Lcd.drawEllipse(posX, posY, 3, 3, BLUE);
 
     }
+  private:
+    bool _needToRefresh = false;
+  protected:
+    bool _toNextScreen = false;
 };
 }
 #endif /* MY_CLASS_GenericScreen */

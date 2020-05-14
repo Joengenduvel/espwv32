@@ -7,9 +7,11 @@ namespace espwv32 {
 
 class AccountSelectionScreen: public GenericScreen {
   public:
-    AccountSelectionScreen(ble::BLEKeyboard* keyboard) {
+    AccountSelectionScreen(ble::BLEKeyboard* keyboard, uint8_t* userPin) {
       _storage = new Storage();
       _keyboard = keyboard;
+      _userPin = userPin;
+      _userPinSize = sizeof(_userPin)/sizeof(uint8_t);
       reset();
     }
     ~AccountSelectionScreen() {
@@ -77,7 +79,7 @@ class AccountSelectionScreen: public GenericScreen {
     void show() {
       M5.Lcd.fillScreen(BLACK);
       M5.Lcd.setRotation(3);
-      
+
       _currentAccount = _storage->read(_accountIndex);
 
       M5.Lcd.setCursor(2, 2);
@@ -112,7 +114,9 @@ class AccountSelectionScreen: public GenericScreen {
       M5.Lcd.printf("%c", 175);
     }
   private:
-    const uint8_t NUM_ACCOUNTS=10;
+    uint8_t* _userPin;
+    uint8_t _userPinSize;
+    const uint8_t NUM_ACCOUNTS = 10;
     Storage* _storage;
     uint8_t _accountIndex = 0;
     enum DataToSend {

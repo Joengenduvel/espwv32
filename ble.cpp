@@ -111,7 +111,7 @@ bool BLEKeyboard::onConfirmPIN(unsigned int v)
 {
   //TODO: Error
   disconnect();
-  return true;
+  return false;
 }
 
 void BLEKeyboard::disconnect() {

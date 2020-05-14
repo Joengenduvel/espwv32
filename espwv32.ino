@@ -6,6 +6,7 @@
 #include "LockScreen.cpp"
 #include "AccountSelectionScreen.cpp"
 #include "Storage.h"
+#include "System.cpp"
 
 espwv32::GenericScreen* _currentScreen;
 espwv32::GenericScreen* _startScreen;
@@ -95,11 +96,14 @@ void setup() {
 void loop() {
   M5.update();
   if (_currentScreen->next()) {
-    delete _currentScreen;
     switch (_currentScreen->getType()) {
       case espwv32::ScreenType::LOCK:
-        _accountSelectionScreen = new espwv32::AccountSelectionScreen(_keyboard);
+      {
+        uint8_t* userPin = ((espwv32::LockScreen*)_lockScreen)->getCode();
+        delete _accountSelectionScreen;
+        _accountSelectionScreen = new espwv32::AccountSelectionScreen(_keyboard, userPin);
         _currentScreen = _accountSelectionScreen;
+      }
         break;
       default:
         Serial.println("unknown type");
@@ -108,9 +112,11 @@ void loop() {
   }
 
 
-  if (millis() % 77 == 0) {
-    //keyboard->setBatteryLevel(getBatteryPercentage());
-  }
+      if (millis() % 77 == 0) {
+        _currentScreen->updateBatteryPercentage(espwv32::System::getBatteryPercentage());
+        _keyboard->setBatteryLevel(espwv32::System::getBatteryPercentage());
+        _currentScreen->updateConnected(_keyboard->isConnected());
+      }
 
   if (M5.BtnA.wasPressed()) {
     _currentScreen->buttonPressedA();

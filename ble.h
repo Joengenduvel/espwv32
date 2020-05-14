@@ -5,6 +5,9 @@
 #include <BLESecurity.h>
 #include <Print.h>
 
+#ifndef MY_CLASS_BLEKeyboard // include guard
+#define MY_CLASS_BLEKeyboard
+
 namespace ble {
 
 //pnp https://www.bluetooth.com/xml-viewer/?src=https://www.bluetooth.com/wp-content/uploads/Sitecore-Media-Library/Gatt/Xml/Characteristics/org.bluetooth.characteristic.pnp_id.xml
@@ -240,7 +243,7 @@ class BLEKeyboard : private BLEServerCallbacks,  private BLESecurityCallbacks, p
     BLECharacteristic* inputKeyboard;
     KeyReport _keyReport;
 
-public:
+  public:
     BLEKeyboard(std::string deviceName = "ESPWV32", std::string deviceManufacturer = "Espressif");
 
     ~BLEKeyboard();
@@ -283,3 +286,4 @@ public:
 
 };
 }
+#endif /* MY_CLASS_BLEKeyboard */

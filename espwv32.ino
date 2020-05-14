@@ -1,29 +1,62 @@
 #include <M5StickC.h>
 #include "ble.h"
-#include "display.h"
+#include "GenericScreen.h"
+#include "StartScreen.cpp"
+#include "PinScreen.cpp"
+#include "LockScreen.cpp"
+#include "AccountSelectionScreen.cpp"
+#include "Storage.h"
 
-//using namespace ble;
+espwv32::GenericScreen* _currentScreen;
+espwv32::GenericScreen* _startScreen;
+espwv32::GenericScreen* _pinScreen;
+espwv32::GenericScreen* _lockScreen;
+espwv32::GenericScreen* _accountSelectionScreen;
 
-ble::BLEKeyboard* keyboard;
-display::Display* screen;
 
-uint32_t pinCode = 0;
-#define PAIR_MAX_DEVICES 20
-uint8_t pairedDeviceBtAddr[PAIR_MAX_DEVICES][6];
+ble::BLEKeyboard* _keyboard;
+
+espwv32::Credentials storedCredentials[] = {
+  {
+    "Account 1",
+    "User 1",
+    "Password 1"
+  },
+  {
+    "Account 2",
+    "User 2",
+    "Password 2"
+  },
+  {
+    "Account 3",
+    "User 3",
+    "Password 3"
+  },
+  {
+    "Account 4",
+    "User 4",
+    "Password 4"
+  }
+};
 
 class MyKeyboardCallbacks: public ble::BLEKeyboardCallbacks {
     void authenticationInfo(uint32_t pin) {
       Serial.println(pin);
-      screen->showPin(pin);
+      delete _pinScreen;
+      _pinScreen = new espwv32::PinScreen(pin);
+      _currentScreen = _pinScreen;
     }
-    
-    void connected(){
+
+    void connected() {
       Serial.println("connected");
-      //screen->showPin(pin);
+      delete _lockScreen;
+      _lockScreen = new espwv32::LockScreen();
+      _currentScreen = _lockScreen;
     }
-    void disconnected(){
+    void disconnected() {
       Serial.println("disconnected");
-      screen->showStart("");
+      _currentScreen = _startScreen;
+      _currentScreen->reset();
     }
 };
 
@@ -32,63 +65,83 @@ void setup() {
 
   Serial.begin(115200);
   M5.begin();
+  EEPROM.begin(1000);
 
-  screen = new display::Display();
+  _startScreen = new espwv32::StartScreen("");
+  _startScreen->next();
+  _currentScreen = _startScreen;
 
-  screen->showStart(getDeviceId());
+  _keyboard = new ble::BLEKeyboard("");
+  _keyboard->setCallbacks(new MyKeyboardCallbacks());
 
-  keyboard = new ble::BLEKeyboard(getDeviceId().c_str());
-  keyboard->setCallbacks(new MyKeyboardCallbacks());
+  espwv32::Storage* storage = new espwv32::Storage();
+
+  //Initialising accounts until this feature is implemented
+  for (byte index = 0; index < sizeof(storedCredentials) / sizeof(espwv32::Credentials); index++) {
+    espwv32::Credentials credsR = storage->read(index);
+    Serial.printf("Updating %d = %s\n", index, credsR.name);
+    if (!String(storedCredentials[index].name).equals(String(credsR.name))) {
+      Serial.printf("Store %d = %s \n", index, storedCredentials[index].name);
+      storage->store(index, storedCredentials[index]);
+    } else {
+      Serial.printf("Verified %d = %s == %s \n", index, credsR.name, storedCredentials[index].name);
+    }
+  }
+  Serial.println(EEPROM.commit());
 }
 
-String getDeviceId() {
-  uint64_t chipid = ESP.getEfuseMac();
 
-  uint32_t low = chipid % 0xFFFFFFFF;
-  uint32_t high = (chipid >> 32) % 0xFFFFFFFF;
-
-  return String(String(high, HEX) + String(low, HEX)).c_str();
-}
-
-uint32_t getBatteryVoltage() {
-  return (M5.Axp.GetVbatData() * 1.1);
-}
-
-uint8_t getBatteryPercentage() {
-  return map(getBatteryVoltage(), 3500, 4125, 0, 100);
-}
 
 void loop() {
   M5.update();
-  screen->updateBatteryPercentage(getBatteryPercentage());
+  if (_currentScreen->next()) {
+    delete _currentScreen;
+    switch (_currentScreen->getType()) {
+      case espwv32::ScreenType::LOCK:
+        _accountSelectionScreen = new espwv32::AccountSelectionScreen(_keyboard);
+        _currentScreen = _accountSelectionScreen;
+        break;
+      default:
+        Serial.println("unknown type");
+
+    }
+  }
+
+
+  if (millis() % 77 == 0) {
+    //keyboard->setBatteryLevel(getBatteryPercentage());
+  }
 
   if (M5.BtnA.wasPressed()) {
-    uint8_t i;
-    Serial.println("sending ");
-
-
-
-    keyboard->print("username\tpassword\n");
-
+    _currentScreen->buttonPressedA();
   }
 
   if (M5.BtnA.pressedFor(1000)) {
-    M5.Axp.ScreenBreath(9);
+    _currentScreen->buttonMediumPressedA();
   }
 
   if (M5.BtnA.pressedFor(2000)) {
-    M5.Axp.ScreenBreath(7);
+    _currentScreen->buttonLongPressedA();
+  }
+
+  if (M5.BtnB.wasPressed()) {
+    _currentScreen->buttonPressedB();
+  }
+
+  if (M5.BtnB.pressedFor(1000)) {
+    _currentScreen->buttonMediumPressedB();
+  }
+
+  if (M5.BtnB.pressedFor(2000)) {
+    _currentScreen->buttonLongPressedB();
   }
 
   if (M5.BtnA.pressedFor(3000)) {
     //M5.Axp.DeepSleep(SLEEP_SEC(10));
-    keyboard->disconnect();
+    //keyboard->disconnect();
     Serial.println("Going to sleep");
 
   }
 
-  //Serial.println(getBatteryLevel());
-  //Serial.println(keyboard->isConnected());
-  keyboard->setBatteryLevel(getBatteryPercentage());
-  //delay(33);
+  //
 }

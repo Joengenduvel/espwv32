@@ -1,9 +1,8 @@
-#include <M5StickC.h>
 #include "display.h"
 
 using namespace display;
 
-void Display::showStart(String deviceID){
+void Display::showStart(String deviceID) {
   M5.Lcd.fillScreen(BLACK);
   M5.Lcd.setTextColor(WHITE);
   M5.Lcd.setRotation(3);
@@ -33,7 +32,7 @@ void Display::showStart(String deviceID){
   M5.Lcd.print(deviceID);
 }
 
-void Display::showPin(uint32_t pin){
+void Display::showPin(uint32_t pin) {
   M5.Lcd.fillScreen(BLACK);
   M5.Lcd.setTextColor(WHITE);
   M5.Lcd.setRotation(3);
@@ -45,20 +44,54 @@ void Display::showPin(uint32_t pin){
   M5.Lcd.print(pin);
 }
 
-void Display::updateBatteryPercentage(uint8_t percentage){
-  uint8_t posX = 127;
+void Display::showInputPin(uint8_t userPin[], uint8_t index=0) {
+  M5.Lcd.fillScreen(BLACK);
+  M5.Lcd.setRotation(3);
+  M5.Lcd.setTextSize(5);
+  M5.Lcd.setCursor(0, 10);
+  for (uint8_t i = 0; i < 4; i++) {
+    if (i == index) {
+
+      M5.Lcd.setTextColor(RED);
+    } else {
+      M5.Lcd.setTextColor(WHITE);
+    }
+    M5.Lcd.print(userPin[i]);
+  }
+
+}
+
+void Display::updateBatteryPercentage(uint8_t percentage) {
+  uint8_t posX = 129;
   uint8_t posY = 1;
-  
+
+  //clear the space
+  M5.Lcd.fillRect(posX, posY, 160-posX, 7, BLACK);
   //lightning logo
-  M5.Lcd.drawLine(posX+5, posY+0, posX+3, posY+3, BLUE);
-  M5.Lcd.drawLine(posX+3, posY+3, posX+5, posY+4, BLUE);
-  M5.Lcd.drawLine(posX+5, posY+4, posX+2, posY+7, BLUE);
-  M5.Lcd.drawLine(posX+2, posY+7, posX+2, posY+5, BLUE);
-  M5.Lcd.drawLine(posX+2, posY+7, posX+4, posY+7, BLUE);
+  M5.Lcd.drawLine(posX + 5, posY + 0, posX + 3, posY + 3, BLUE);
+  M5.Lcd.drawLine(posX + 3, posY + 3, posX + 5, posY + 4, BLUE);
+  M5.Lcd.drawLine(posX + 5, posY + 4, posX + 2, posY + 7, BLUE);
+  M5.Lcd.drawLine(posX + 2, posY + 7, posX + 2, posY + 5, BLUE);
+  M5.Lcd.drawLine(posX + 2, posY + 7, posX + 4, posY + 7, BLUE);
 
   M5.Lcd.setTextColor(BLUE);
-  M5.Lcd.setCursor(posX+7, posY);
+  M5.Lcd.setCursor(posX + 7, posY);
   M5.Lcd.setTextSize(1);
-  M5.Lcd.print(100);
+  M5.Lcd.print(percentage);
   M5.Lcd.print("%");
+}
+
+void Display::updateConnected(bool connected) {
+  uint8_t posX = 152;
+  uint8_t posY = 15;
+
+  //lightning logo
+  if (connected) {
+    M5.Lcd.fillEllipse(posX, posY, 3, 3, BLUE);
+  } else {
+    M5.Lcd.fillEllipse(posX, posY, 3, 3, BLACK);
+  }
+
+  M5.Lcd.drawEllipse(posX, posY, 3, 3, BLUE);
+
 }

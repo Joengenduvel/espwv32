@@ -71,7 +71,7 @@ class AccountSelectionScreen: public GenericScreen {
           _dataToSend = USERNAME_PASSWORD;
           break;
       }
-      show();
+      show();// only update the specific section
     }
     ScreenType getType() {
       return ACCOUNT_SELECTION;

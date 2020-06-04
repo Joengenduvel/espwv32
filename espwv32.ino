@@ -19,6 +19,8 @@ espwv32::GenericScreen* _accountSelectionScreen;
 
 ble::BLEKeyboard* _keyboard;
 
+enum PressDuration {SHORT, MEDIUM, LONG};
+
 espwv32::Credentials storedCredentials[] = {
   {
     "Account 1",
@@ -100,12 +102,12 @@ void loop() {
   if (_currentScreen->next()) {
     switch (_currentScreen->getType()) {
       case espwv32::ScreenType::LOCK:
-      {
-        uint8_t* userPin = ((espwv32::LockScreen*)_lockScreen)->getCode();
-        delete _accountSelectionScreen;
-        _accountSelectionScreen = new espwv32::AccountSelectionScreen(_keyboard, userPin);
-        _currentScreen = _accountSelectionScreen;
-      }
+        {
+          uint8_t* userPin = ((espwv32::LockScreen*)_lockScreen)->getCode();
+          delete _accountSelectionScreen;
+          _accountSelectionScreen = new espwv32::AccountSelectionScreen(_keyboard, userPin);
+          _currentScreen = _accountSelectionScreen;
+        }
         break;
       default:
         Serial.println("unknown type");
@@ -114,42 +116,46 @@ void loop() {
   }
 
 
-      if (millis() % 77 == 0) {
-        _currentScreen->updateBatteryPercentage(espwv32::System::getBatteryPercentage());
-        _keyboard->setBatteryLevel(espwv32::System::getBatteryPercentage());
-        _currentScreen->updateConnected(_keyboard->isConnected());
-      }
-
-  if (M5.BtnA.wasPressed()) {
+  if (millis() % 77 == 0) {
+    _currentScreen->updateBatteryPercentage(espwv32::System::getBatteryPercentage());
+    _keyboard->setBatteryLevel(espwv32::System::getBatteryPercentage());
+    _currentScreen->updateConnected(_keyboard->isConnected());
+  }
+  if (M5.BtnA.wasReleasefor(1)) {
+    Serial.println("A pressed");
     _currentScreen->buttonPressedA();
   }
 
-  if (M5.BtnA.pressedFor(1000)) {
+  if (M5.BtnA.wasReleasefor(1000)) {
+    Serial.println("A medium pressed");
     _currentScreen->buttonMediumPressedA();
   }
 
-  if (M5.BtnA.pressedFor(2000)) {
+  if (M5.BtnA.wasReleasefor(2000)) {
+    Serial.println("A long pressed");
     _currentScreen->buttonLongPressedA();
   }
 
-  if (M5.BtnB.wasPressed()) {
-    _currentScreen->buttonPressedB();
-  }
-
-  if (M5.BtnB.pressedFor(1000)) {
-    _currentScreen->buttonMediumPressedB();
-  }
-
-  if (M5.BtnB.pressedFor(2000)) {
-    _currentScreen->buttonLongPressedB();
-  }
-
-  if (M5.BtnA.pressedFor(3000)) {
+  if (M5.BtnA.wasReleasefor(3000)) {
     //M5.Axp.DeepSleep(SLEEP_SEC(10));
     //keyboard->disconnect();
     Serial.println("Going to sleep");
 
   }
 
-  //
+  if (M5.BtnB.wasReleasefor(1)) {
+    Serial.println("B pressed");
+    _currentScreen->buttonPressedB();
+  }
+
+  if (M5.BtnB.wasReleasefor(1000)) {
+    Serial.println("B medium pressed");
+    _currentScreen->buttonMediumPressedB();
+  }
+
+  if (M5.BtnB.wasReleasefor(2000)) {
+    Serial.println("B long pressed");
+    _currentScreen->buttonLongPressedB();
+  }
+
 }

@@ -7,10 +7,11 @@ namespace espwv32 {
 
 class AccountSelectionScreen: public GenericScreen {
   public:
-    AccountSelectionScreen(ble::BLEKeyboard* keyboard, uint8_t* userPin) {
+    AccountSelectionScreen(ble::BLEKeyboard* keyboard, uint8_t *userPin) {
       _storage = new Storage();
       _keyboard = keyboard;
       _userPin = userPin;
+      Serial.printf("Account Selection with pin %d%d%d%d\n", _userPin[0], _userPin[1], _userPin[2], _userPin[3]);
       _userPinSize = sizeof(_userPin)/sizeof(uint8_t);
       reset();
     }
@@ -80,7 +81,7 @@ class AccountSelectionScreen: public GenericScreen {
       M5.Lcd.fillScreen(BLACK);
       M5.Lcd.setRotation(3);
 
-      _currentAccount = _storage->read(_accountIndex);
+      _currentAccount = _storage->read(_accountIndex, _userPin);
 
       M5.Lcd.setCursor(2, 2);
       M5.Lcd.setTextSize(3);

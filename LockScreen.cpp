@@ -14,7 +14,6 @@ class LockScreen : public GenericScreen {
     void buttonMediumPressedA() {
       M5.Lcd.fillScreen(BLACK);
       _toNextScreen = true;
-      reset();
     }
     void buttonPressedB() {
       _userPin[_userPinIndex]++;
@@ -38,7 +37,8 @@ class LockScreen : public GenericScreen {
       return LOCK;
     }
     
-    uint8_t* getCode(){
+    uint8_t* getCode(){      
+      Serial.printf("Obtaining pin %d%d%d%d\n", _userPin[0], _userPin[1], _userPin[2], _userPin[3]);
       return _userPin;
     }
   private:

@@ -21,11 +21,13 @@ class Storage {
     ~Storage() {
       //EEPROM.end();
     }
-    bool store(byte index, Credentials creds);
-    Credentials read(byte index);
+    bool store(byte index, Credentials creds, uint8_t pin[]);
+    Credentials read(byte index, uint8_t pin[]);
   private:
-    Credentials encrypt(Credentials credentials);
-    Credentials decrypt(Credentials credentials);
+    Credentials encrypt(Credentials credentials, uint8_t pin[]);
+    Credentials decrypt(Credentials credentials, uint8_t pin[]);
+    uint8_t* calculateIV(uint8_t iv[],uint8_t* pin);
+    uint8_t* calculateKey(uint8_t key[],uint8_t* pin);
 };
 
 }

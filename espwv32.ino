@@ -19,30 +19,6 @@ espwv32::GenericScreen* _accountSelectionScreen;
 
 ble::BLEKeyboard* _keyboard;
 
-enum PressDuration {SHORT, MEDIUM, LONG};
-
-espwv32::Credentials storedCredentials[] = {
-  {
-    "Account 1",
-    "User 1",
-    "Password 1"
-  },
-  {
-    "Account 2",
-    "User 2",
-    "Password 2"
-  },
-  {
-    "Account 3",
-    "User 3",
-    "Password 3"
-  },
-  {
-    "Account 4",
-    "User 4",
-    "Password 4"
-  }
-};
 
 class MyKeyboardCallbacks: public ble::BLEKeyboardCallbacks {
     void authenticationInfo(uint32_t pin) {
@@ -79,20 +55,7 @@ void setup() {
   _keyboard = new ble::BLEKeyboard("");
   _keyboard->setCallbacks(new MyKeyboardCallbacks());
 
-  espwv32::Storage* storage = new espwv32::Storage();
-
-  //Initialising accounts until this feature is implemented
-  for (byte index = 0; index < sizeof(storedCredentials) / sizeof(espwv32::Credentials); index++) {
-    espwv32::Credentials credsR = storage->read(index);
-    Serial.printf("Updating %d = %s\n", index, credsR.name);
-    if (!String(storedCredentials[index].name).equals(String(credsR.name))) {
-      Serial.printf("Store %d = %s \n", index, storedCredentials[index].name);
-      storage->store(index, storedCredentials[index]);
-    } else {
-      Serial.printf("Verified %d = %s == %s \n", index, credsR.name, storedCredentials[index].name);
-    }
-  }
-  Serial.println(EEPROM.commit());
+  storeDummyAccounts();
 }
 
 
@@ -104,6 +67,8 @@ void loop() {
       case espwv32::ScreenType::LOCK:
         {
           uint8_t* userPin = ((espwv32::LockScreen*)_lockScreen)->getCode();
+          
+      Serial.printf("Initialising Account Selection with pin %d%d%d%d\n", userPin[0], userPin[1], userPin[2], userPin[3]);
           delete _accountSelectionScreen;
           _accountSelectionScreen = new espwv32::AccountSelectionScreen(_keyboard, userPin);
           _currentScreen = _accountSelectionScreen;
@@ -158,4 +123,43 @@ void loop() {
     _currentScreen->buttonLongPressedB();
   }
 
+}
+
+void storeDummyAccounts() {
+  uint8_t _userPin[4] = {1, 2, 3, 4};
+  espwv32::Credentials storedCredentials[] = {
+    {
+      "Account 1",
+      "User 1",
+      "Password 1"
+    },
+    {
+      "Account 2",
+      "User 2",
+      "Password 2"
+    },
+    {
+      "Account 3",
+      "User 3",
+      "Password 3"
+    },
+    {
+      "Account 4",
+      "User 4",
+      "Password 4"
+    }
+  };
+  Serial.println("inserting dummy credentials");
+  espwv32::Storage* storage = new espwv32::Storage();
+  //Initialising accounts until this feature is implemented
+  for (byte index = 0; index < sizeof(storedCredentials) / sizeof(espwv32::Credentials); index++) {
+    espwv32::Credentials credsR = storage->read(index, _userPin);
+    if (!String(storedCredentials[index].name).equals(String(credsR.name))) {
+      Serial.printf("Store %d = %s \n", index, storedCredentials[index].name);
+      storage->store(index, storedCredentials[index], _userPin);
+    } else {
+      Serial.printf("Verified %d = %s == %s \n", index, credsR.name, storedCredentials[index].name);
+    }
+  }
+  Serial.println(EEPROM.commit());
 }

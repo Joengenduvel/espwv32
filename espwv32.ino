@@ -46,6 +46,7 @@ void setup() {
 
   Serial.begin(115200);
   M5.begin();
+  M5.Axp.ScreenBreath(10);
   EEPROM.begin(1000);
 
   _startScreen = new espwv32::StartScreen("");

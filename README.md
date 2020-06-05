@@ -23,6 +23,14 @@ https://m5stack.com/products/stick-c
 https://docs.m5stack.com/#/en/arduino/arduino_api
 
 ## Screens
+### Start Screen
+![alt text](IMG_3459.JPG "Start screen")
+### Bluetooth Connection PIN
+![alt text](IMG_3461.JPG "Pin entry screen")
+### Locked, waiting for User PIN
+![alt text](IMG_3463.JPG "Lock screen")
+### Selecting an Account
+![alt text](IMG_3469.JPG "Account Selection")
 
 ## High Level Acrchitecture
 ![alt text](architecture.png "Logo Title Text 1")

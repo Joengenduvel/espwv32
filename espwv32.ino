@@ -91,19 +91,19 @@ void loop() {
     _currentScreen->buttonPressedA();
   }
 
-  if (M5.BtnA.wasReleasefor(1000)) {
+  if (M5.BtnA.wasReleasefor(500)) {
     Serial.println("A medium pressed");
     _currentScreen->buttonMediumPressedA();
   }
 
-  if (M5.BtnA.wasReleasefor(2000)) {
+  if (M5.BtnA.wasReleasefor(1000)) {
     Serial.println("A long pressed");
     _currentScreen->buttonLongPressedA();
   }
 
-  if (M5.BtnA.wasReleasefor(3000)) {
-    //M5.Axp.DeepSleep(SLEEP_SEC(10));
+  if (M5.BtnA.wasReleasefor(2000)) {
     //keyboard->disconnect();
+    //M5.Axp.DeepSleep(SLEEP_SEC(10));
     Serial.println("Going to sleep");
 
   }
@@ -113,12 +113,12 @@ void loop() {
     _currentScreen->buttonPressedB();
   }
 
-  if (M5.BtnB.wasReleasefor(1000)) {
+  if (M5.BtnB.wasReleasefor(500)) {
     Serial.println("B medium pressed");
     _currentScreen->buttonMediumPressedB();
   }
 
-  if (M5.BtnB.wasReleasefor(2000)) {
+  if (M5.BtnB.wasReleasefor(1000)) {
     Serial.println("B long pressed");
     _currentScreen->buttonLongPressedB();
   }

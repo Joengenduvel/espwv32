@@ -31,9 +31,9 @@ class AccountSelectionScreen: public GenericScreen {
       show();
     }
     virtual void buttonMediumPressedA() {
+      _accountIndex--;
       if (_accountIndex <= 0)
         _accountIndex = NUM_ACCOUNTS;
-      _accountIndex--;
       Serial.printf("Previous %d \n", _accountIndex);
       show();
     }

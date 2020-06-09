@@ -42,7 +42,7 @@ class MyKeyboardCallbacks: public ble::BLEKeyboardCallbacks {
 };
 
 void setup() {
-  //setCpuFrequencyMhz(80);
+  setCpuFrequencyMhz(80);
 
   Serial.begin(115200);
   M5.begin();

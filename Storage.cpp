@@ -10,6 +10,7 @@ bool Storage::store(byte index, espwv32::Credentials credentials, uint8_t pin[])
 }
 espwv32::Credentials Storage::read(byte index, uint8_t pin[]) {
   //todo: validate index
+  
   Serial.printf("Reading index, %d with pin %d%d%d%d\n", index, pin[0], pin[1], pin[2], pin[3]);
   Credentials credentials;
   return decrypt(EEPROM.get(index * sizeof(credentials), credentials), pin);

@@ -72,7 +72,7 @@ class AccountSelectionScreen: public GenericScreen {
           _dataToSend = USERNAME_PASSWORD;
           break;
       }
-      show();// only update the specific section
+      show();// TODO: only update the specific section
     }
     ScreenType getType() {
       return ACCOUNT_SELECTION;
@@ -117,7 +117,7 @@ class AccountSelectionScreen: public GenericScreen {
   private:
     uint8_t* _userPin;
     uint8_t _userPinSize;
-    const uint8_t NUM_ACCOUNTS = 10;
+    const uint8_t NUM_ACCOUNTS = 10; // TODO: move to storage
     Storage* _storage;
     uint8_t _accountIndex = 0;
     enum DataToSend {

@@ -12,7 +12,7 @@ class AccountSelectionScreen: public GenericScreen {
       _keyboard = keyboard;
       _userPin = userPin;
       Serial.printf("Account Selection with pin %d%d%d%d\n", _userPin[0], _userPin[1], _userPin[2], _userPin[3]);
-      _userPinSize = sizeof(_userPin)/sizeof(uint8_t);
+      _userPinSize = sizeof(_userPin) / sizeof(uint8_t);
       reset();
     }
     ~AccountSelectionScreen() {
@@ -72,7 +72,7 @@ class AccountSelectionScreen: public GenericScreen {
           _dataToSend = USERNAME_PASSWORD;
           break;
       }
-      show();// TODO: only update the specific section
+      showDataToSendControls();
     }
     ScreenType getType() {
       return ACCOUNT_SELECTION;
@@ -93,6 +93,14 @@ class AccountSelectionScreen: public GenericScreen {
       M5.Lcd.setTextColor(WHITE);
       M5.Lcd.print(_currentAccount.name);
 
+      showDataToSendControls();
+
+      M5.Lcd.setTextSize(2);
+      M5.Lcd.setCursor(-1, 25);
+      M5.Lcd.printf("%c", 175);
+    }
+    void showDataToSendControls() {
+      M5.Lcd.fillRect(56,0,61,15, BLACK);
       M5.Lcd.setCursor(60, 4);
       M5.Lcd.setTextSize(1);
       M5.Lcd.setTextColor(RED);
@@ -109,11 +117,8 @@ class AccountSelectionScreen: public GenericScreen {
           M5.Lcd.drawRect(103, 0, 14, 15, RED );
           break;
       }
-
-      M5.Lcd.setTextSize(2);
-      M5.Lcd.setCursor(-1, 25);
-      M5.Lcd.printf("%c", 175);
     }
+    
   private:
     uint8_t* _userPin;
     uint8_t _userPinSize;

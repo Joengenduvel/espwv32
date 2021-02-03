@@ -38,6 +38,9 @@ https://docs.m5stack.com/#/en/arduino/arduino_api
 ## Sequences
 ![alt text](sequence.png "Logo Title Text 1")
 
+## Quality
+[![CodeFactor](https://www.codefactor.io/repository/github/joengenduvel/espwv32/badge)](https://www.codefactor.io/repository/github/joengenduvel/espwv32)
+
 ## Inspiring reads:
 * https://github.com/espressif/arduino-esp32/blob/master/tools/sdk/include/mbedtls/mbedtls/aes.h
 * https://hackaday.com/2020/02/19/password-keeper-uses-off-the-shelf-formfactor/

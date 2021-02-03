@@ -6,7 +6,7 @@
 #define MY_CLASS_Storage
 
 namespace espwv32 {
-//must be n times 16 to be able to be encrypted in this case 6*16 = 96
+//must be n times 16 to be able to be encrypted in this case 6*16 = 96 = 26 + 38 + 32
 struct Credentials {
   char name[26];
   char username[38];

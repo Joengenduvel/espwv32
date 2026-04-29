@@ -5,6 +5,7 @@
 #include "PinScreen.cpp"
 #include "LockScreen.cpp"
 #include "AccountSelectionScreen.cpp"
+#include "WifiAdminScreen.cpp"
 #include "Storage.h"
 #include "System.cpp"
 
@@ -15,6 +16,7 @@ espwv32::GenericScreen* _startScreen;
 espwv32::GenericScreen* _pinScreen;
 espwv32::GenericScreen* _lockScreen;
 espwv32::GenericScreen* _accountSelectionScreen;
+espwv32::GenericScreen* _wifiAdminScreen;
 
 
 ble::BLEKeyboard* _keyboard;
@@ -53,6 +55,7 @@ void setup() {
   _pinScreen = new espwv32::PinScreen();
   _lockScreen = new espwv32::LockScreen();
   _accountSelectionScreen = new espwv32::AccountSelectionScreen(_keyboard);
+  _wifiAdminScreen = new espwv32::WifiAdminScreen();
 
   _startScreen->reset();
   _currentScreen = _startScreen;
@@ -66,6 +69,8 @@ void setup() {
 
 void loop() {
   M5.update();
+  _currentScreen->handle();
+
   if (_currentScreen->next()) {
     switch (_currentScreen->getType()) {
       case espwv32::ScreenType::LOCK:
@@ -73,6 +78,20 @@ void loop() {
           uint8_t* userPin = ((espwv32::LockScreen*)_lockScreen)->getCode();
           Serial.printf("Initialising Account Selection with pin %d%d%d%d\n", userPin[0], userPin[1], userPin[2], userPin[3]);
           ((espwv32::AccountSelectionScreen*)_accountSelectionScreen)->updatePin(userPin);
+          _currentScreen = _accountSelectionScreen;
+        }
+        break;
+      case espwv32::ScreenType::ACCOUNT_SELECTION:
+        {
+          uint8_t* pin = ((espwv32::AccountSelectionScreen*)_accountSelectionScreen)->getPin();
+          ((espwv32::WifiAdminScreen*)_wifiAdminScreen)->updatePin(pin);
+          _currentScreen = _wifiAdminScreen;
+        }
+        break;
+      case espwv32::ScreenType::WIFI_ADMIN:
+        {
+          // Return to account list with the same pin (already set)
+          _accountSelectionScreen->reset();
           _currentScreen = _accountSelectionScreen;
         }
         break;

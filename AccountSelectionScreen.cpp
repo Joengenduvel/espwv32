@@ -77,6 +77,13 @@ class AccountSelectionScreen: public GenericScreen {
       }
       showDataToSendControls();
     }
+    virtual void buttonLongPressedB() {
+      Serial.println("Opening WiFi Admin");
+      _toNextScreen = true;
+    }
+    uint8_t* getPin() {
+      return _userPin;
+    }
     ScreenType getType() {
       return ACCOUNT_SELECTION;
     }

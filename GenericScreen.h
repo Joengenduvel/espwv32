@@ -8,7 +8,8 @@ enum ScreenType { //Because of no rtti
   START,
   PIN,
   LOCK,
-  ACCOUNT_SELECTION
+  ACCOUNT_SELECTION,
+  WIFI_ADMIN
 };
 class GenericScreen {
   public:
@@ -20,8 +21,10 @@ class GenericScreen {
     virtual void buttonLongPressedB() {}
     virtual void show();
     virtual ScreenType getType();
+    virtual void handle() {}
     virtual void reset() {
       _needToRefresh = true;
+      _toNextScreen = false;
     }
     virtual boolean next() {
       if (_needToRefresh) {

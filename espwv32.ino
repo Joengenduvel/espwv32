@@ -23,15 +23,13 @@ ble::BLEKeyboard* _keyboard;
 class MyKeyboardCallbacks: public ble::BLEKeyboardCallbacks {
     void authenticationInfo(uint32_t pin) {
       Serial.println(pin);
-      delete _pinScreen;
-      _pinScreen = new espwv32::PinScreen(pin);
+      ((espwv32::PinScreen*)_pinScreen)->updatePin(pin);
       _currentScreen = _pinScreen;
     }
 
     void connected() {
       Serial.println("connected");
-      delete _lockScreen;
-      _lockScreen = new espwv32::LockScreen();
+      _lockScreen->reset();
       _currentScreen = _lockScreen;
     }
     void disconnected() {
@@ -46,14 +44,19 @@ void setup() {
 
   Serial.begin(115200);
   M5.begin();
-  M5.Axp.ScreenBreath(10);
+  M5.Axp.ScreenBreath(15); // 7=off, 15=max brightness
   EEPROM.begin(1000);
 
+  _keyboard = new ble::BLEKeyboard("");
+
   _startScreen = new espwv32::StartScreen("");
-  _startScreen->next();
+  _pinScreen = new espwv32::PinScreen();
+  _lockScreen = new espwv32::LockScreen();
+  _accountSelectionScreen = new espwv32::AccountSelectionScreen(_keyboard);
+
+  _startScreen->reset();
   _currentScreen = _startScreen;
 
-  _keyboard = new ble::BLEKeyboard("");
   _keyboard->setCallbacks(new MyKeyboardCallbacks());
 
   storeDummyAccounts();
@@ -68,10 +71,8 @@ void loop() {
       case espwv32::ScreenType::LOCK:
         {
           uint8_t* userPin = ((espwv32::LockScreen*)_lockScreen)->getCode();
-
           Serial.printf("Initialising Account Selection with pin %d%d%d%d\n", userPin[0], userPin[1], userPin[2], userPin[3]);
-          delete _accountSelectionScreen;
-          _accountSelectionScreen = new espwv32::AccountSelectionScreen(_keyboard, userPin);
+          ((espwv32::AccountSelectionScreen*)_accountSelectionScreen)->updatePin(userPin);
           _currentScreen = _accountSelectionScreen;
         }
         break;

@@ -5,7 +5,10 @@ namespace espwv32 {
 class PinScreen : public GenericScreen {
     
   public:
-    PinScreen(uint32_t pin) {
+    PinScreen() {
+      _pin = 0;
+    }
+    void updatePin(uint32_t pin) {
       _pin = pin;
       reset();
     }

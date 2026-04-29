@@ -1,5 +1,5 @@
 #include <EEPROM.h>
-#include <hwcrypto/aes.h>
+#include <mbedtls/aes.h>
 #include <Arduino.h>  // for type definitions
 
 #ifndef MY_CLASS_Storage // include guard

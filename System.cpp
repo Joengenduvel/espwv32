@@ -13,7 +13,7 @@ class System {
       uint32_t low = chipid % 0xFFFFFFFF;
       uint32_t high = (chipid >> 32) % 0xFFFFFFFF;
 
-      return String(String(high, HEX) + String(low, HEX)).c_str();
+      return String(high, HEX) + String(low, HEX);
     }
 
     static uint32_t getBatteryVoltage() {

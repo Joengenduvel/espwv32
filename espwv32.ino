@@ -82,7 +82,9 @@ void loop() {
   }
 
 
-  if (millis() % 77 == 0) {
+  static unsigned long lastStatusUpdate = 0;
+  if (millis() - lastStatusUpdate >= 77) {
+    lastStatusUpdate = millis();
     _currentScreen->updateBatteryPercentage(espwv32::System::getBatteryPercentage());
     _keyboard->setBatteryLevel(espwv32::System::getBatteryPercentage());
     _currentScreen->updateConnected(_keyboard->isConnected());
@@ -161,13 +163,13 @@ void storeDummyAccounts() {
     }
   };
   Serial.println("inserting dummy credentials");
-  espwv32::Storage* storage = new espwv32::Storage();
+  espwv32::Storage storage;
   //Initialising accounts until this feature is implemented
   for (byte index = 0; index < sizeof(storedCredentials) / sizeof(espwv32::Credentials); index++) {
-    espwv32::Credentials credsR = storage->read(index, _userPin);
+    espwv32::Credentials credsR = storage.read(index, _userPin);
     if (!String(storedCredentials[index].name).equals(String(credsR.name))) {
       Serial.printf("Store %d = %s \n", index, storedCredentials[index].name);
-      storage->store(index, storedCredentials[index], _userPin);
+      storage.store(index, storedCredentials[index], _userPin);
     } else {
       Serial.printf("Verified %d = %s == %s \n", index, credsR.name, storedCredentials[index].name);
     }

@@ -7,12 +7,12 @@
 using namespace ble;
 
 
-BLEKeyboard::BLEKeyboard(std::string deviceName, std::string deviceManufacturer) {
+BLEKeyboard::BLEKeyboard(String deviceName, String deviceManufacturer) {
   this->deviceName = deviceName;
   this->deviceManufacturer = deviceManufacturer;
 
   BLEDevice::init(this->deviceName);
-  BLEDevice::setEncryptionLevel(ESP_BLE_SEC_ENCRYPT_MITM);
+  // setEncryptionLevel removed in esp32 core v3.x; security is configured via BLESecurity below
   this->pServer = BLEDevice::createServer();
   pServer->setCallbacks(this);
   BLEDevice::setSecurityCallbacks(this);
@@ -51,8 +51,6 @@ BLEKeyboard::BLEKeyboard(std::string deviceName, std::string deviceManufacturer)
 
 BLEKeyboard::~BLEKeyboard() {
   //TODO: disable Bluetooth
-  delete &deviceName;
-  delete &deviceManufacturer;
 }
 
 void BLEKeyboard::onConnect(BLEServer* pServer)

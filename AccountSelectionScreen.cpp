@@ -10,9 +10,8 @@ class AccountSelectionScreen: public GenericScreen {
     AccountSelectionScreen(ble::BLEKeyboard* keyboard, uint8_t *userPin) {
       _storage = new Storage();
       _keyboard = keyboard;
-      _userPin = userPin;
+      memcpy(_userPin, userPin, 4);
       Serial.printf("Account Selection with pin %d%d%d%d\n", _userPin[0], _userPin[1], _userPin[2], _userPin[3]);
-      _userPinSize = sizeof(_userPin) / sizeof(uint8_t);
       reset();
     }
     ~AccountSelectionScreen() {
@@ -31,9 +30,10 @@ class AccountSelectionScreen: public GenericScreen {
       show();
     }
     virtual void buttonMediumPressedA() {
-      _accountIndex--;
-      if (_accountIndex <= 0)
-        _accountIndex = NUM_ACCOUNTS;
+      if (_accountIndex == 0)
+        _accountIndex = NUM_ACCOUNTS - 1;
+      else
+        _accountIndex--;
       Serial.printf("Previous %d \n", _accountIndex);
       show();
     }
@@ -120,8 +120,8 @@ class AccountSelectionScreen: public GenericScreen {
     }
     
   private:
-    uint8_t* _userPin;
-    uint8_t _userPinSize;
+    uint8_t _userPin[4];
+
     const uint8_t NUM_ACCOUNTS = 10; // TODO: move to storage
     Storage* _storage;
     uint8_t _accountIndex = 0;

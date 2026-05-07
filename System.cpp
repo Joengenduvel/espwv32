@@ -23,6 +23,10 @@ class System {
     static uint8_t getBatteryPercentage() {
       return map(getBatteryVoltage(), 3200, 4200, 0, 100);
     }
+
+    static bool isCharging() {
+      return M5.Axp.isCharging();
+    }
 };
 
 

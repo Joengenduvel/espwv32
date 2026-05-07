@@ -105,7 +105,7 @@ void loop() {
   static unsigned long lastStatusUpdate = 0;
   if (millis() - lastStatusUpdate >= 77) {
     lastStatusUpdate = millis();
-    _currentScreen->updateBatteryPercentage(espwv32::System::getBatteryPercentage());
+    _currentScreen->updateBatteryPercentage(espwv32::System::getBatteryPercentage(), espwv32::System::isCharging());
     _keyboard->setBatteryLevel(espwv32::System::getBatteryPercentage());
     _currentScreen->updateConnected(_keyboard->isConnected());
   }

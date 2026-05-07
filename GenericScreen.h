@@ -34,21 +34,24 @@ class GenericScreen {
       return _toNextScreen;
     }
 
-    void updateBatteryPercentage(uint8_t percentage = 0) {
+    void updateBatteryPercentage(uint8_t percentage = 0, bool charging = false) {
       uint8_t posX = 129;
       uint8_t posY = 1;
 
       M5.Lcd.setRotation(3);
       //clear the space
-      M5.Lcd.fillRect(posX, posY, 160 - posX, 7, BLACK);
-      //lightning logo
-      M5.Lcd.drawLine(posX + 5, posY + 0, posX + 3, posY + 3, BLUE);
-      M5.Lcd.drawLine(posX + 3, posY + 3, posX + 5, posY + 4, BLUE);
-      M5.Lcd.drawLine(posX + 5, posY + 4, posX + 2, posY + 7, BLUE);
-      M5.Lcd.drawLine(posX + 2, posY + 7, posX + 2, posY + 5, BLUE);
-      M5.Lcd.drawLine(posX + 2, posY + 7, posX + 4, posY + 7, BLUE);
+      M5.Lcd.fillRect(posX, posY, 160 - posX, 8, BLACK);
 
-      M5.Lcd.setTextColor(BLUE);
+      //lightning logo (only shown when charging)
+      if (charging) {
+        M5.Lcd.drawLine(posX + 5, posY + 0, posX + 3, posY + 3, BLUE);
+        M5.Lcd.drawLine(posX + 3, posY + 3, posX + 5, posY + 4, BLUE);
+        M5.Lcd.drawLine(posX + 5, posY + 4, posX + 2, posY + 7, BLUE);
+        M5.Lcd.drawLine(posX + 2, posY + 7, posX + 2, posY + 5, BLUE);
+        M5.Lcd.drawLine(posX + 2, posY + 7, posX + 4, posY + 7, BLUE);
+      }
+
+      M5.Lcd.setTextColor(percentage <= 30 ? RED : BLUE);
       M5.Lcd.setCursor(posX + 7, posY);
       M5.Lcd.setTextSize(1);
       M5.Lcd.print(percentage);

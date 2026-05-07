@@ -99,8 +99,14 @@ class WifiAdminScreen : public GenericScreen {
       // Boost CPU for concurrent BLE + WiFi
       setCpuFrequencyMhz(240);
 
+      // Clear any previous WiFi state so Windows doesn't get a stale handshake
+      WiFi.persistent(false);
+      WiFi.disconnect(true);
+      delay(100);
+
       // AP-only mode; channel 6 avoids overlap with BLE advertising channels (37/38/39)
       WiFi.mode(WIFI_AP);
+      delay(100); // let the radio settle before starting the AP
       WiFi.softAP(WIFI_ADMIN_SSID, WIFI_ADMIN_PASS, 6);
 
       // Wait until the AP is fully up (IP assigned), max 3 s

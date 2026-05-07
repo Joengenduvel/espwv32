@@ -25,7 +25,7 @@ class System {
     }
 
     static bool isCharging() {
-      return M5.Axp.isCharging();
+      return M5.Axp.GetIchargeData() > 0;
     }
 };
 

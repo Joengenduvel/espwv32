@@ -53,8 +53,20 @@ class WifiAdminScreen : public GenericScreen {
     }
 
     void show() override {
-      startAP();
-      drawScreen();
+      // Draw "starting..." placeholder first so the screen isn't blank during AP init
+      M5.Lcd.fillScreen(BLACK);
+      M5.Lcd.setRotation(3);
+      M5.Lcd.setTextSize(2);
+      M5.Lcd.setTextColor(YELLOW);
+      M5.Lcd.setCursor(0, 0);
+      M5.Lcd.print("WiFi Admin");
+      M5.Lcd.setTextSize(1);
+      M5.Lcd.setTextColor(DARKGREY);
+      M5.Lcd.setCursor(0, 20);
+      M5.Lcd.print("Starting AP...");
+
+      startAP();   // blocks until AP is ready (max 3 s)
+      drawScreen(); // redraw with actual IP
     }
 
     void drawScreen() {
@@ -83,8 +95,19 @@ class WifiAdminScreen : public GenericScreen {
 
     void startAP() {
       if (_server != nullptr) return; // already running
-      WiFi.softAP(WIFI_ADMIN_SSID, WIFI_ADMIN_PASS);
-      delay(200);
+
+      // Boost CPU for concurrent BLE + WiFi
+      setCpuFrequencyMhz(240);
+
+      // AP-only mode; channel 6 avoids overlap with BLE advertising channels (37/38/39)
+      WiFi.mode(WIFI_AP);
+      WiFi.softAP(WIFI_ADMIN_SSID, WIFI_ADMIN_PASS, 6);
+
+      // Wait until the AP is fully up (IP assigned), max 3 s
+      unsigned long t = millis();
+      while (WiFi.softAPIP() == IPAddress(0, 0, 0, 0) && millis() - t < 3000) {
+        delay(50);
+      }
 
       _dns = new DNSServer();
       _dns->start(DNS_PORT, "*", WiFi.softAPIP());
@@ -105,6 +128,9 @@ class WifiAdminScreen : public GenericScreen {
       if (_server != nullptr) { _server->stop(); delete _server; _server = nullptr; }
       if (_dns    != nullptr) { _dns->stop();    delete _dns;    _dns    = nullptr; }
       WiFi.softAPdisconnect(true);
+      WiFi.mode(WIFI_OFF);
+      // Restore lower CPU frequency to save power
+      setCpuFrequencyMhz(80);
       Serial.println("WiFi Admin AP stopped");
     }
 

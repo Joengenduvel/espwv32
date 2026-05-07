@@ -23,8 +23,26 @@ A password vault you can take with you. Credentials are stored encrypted on the 
 ## Hardware
 * Device: https://m5stack.com/products/stick-c
 * Arduino API: https://docs.m5stack.com/#/en/arduino/arduino_api
-* **Button A** — the main side button (larger)
-* **Button B** — the front button (smaller, below the screen)
+
+### Device Layout
+
+```
+                    ◉ LED   IR 》
+  [PWR]           ┌──────────────┐
+  (left side) ────┤ ┌──────────┐ ├─── [A] (right side, large)
+  hold 6s=OFF     │ │          │ │
+                  │ │  Screen  │ │
+                  │ │  80×160  │ │
+                  │ │          │ │
+                  │ └──────────┘ │
+                  │ [B]          │    ← front face, bottom-left
+                  └──┬───────────┘
+                  Grove  USB-C CHG
+```
+
+* **Button A** — right-side button (larger); mapped to navigation / confirm
+* **Button B** — front face, bottom-left corner; mapped to value change / send
+* **PWR switch** — left side; hold 6 seconds to power off
 
 ---
 
@@ -68,6 +86,19 @@ Shown on boot and after a BLE disconnect. Displays the device logo and device ID
 
 ![Start screen](IMG_3459.JPG)
 
+```
+┌────────────────────────┐
+│ 🔋 87%        ○        │  ← battery & BLE status
+│                        │
+│      ESPWV32           │
+│   Password Vault       │
+│                        │
+│  ID: 3a4f9bc1          │  ← unique device ID
+│                        │
+│  Waiting for BLE...    │
+└────────────────────────┘
+```
+
 **Waiting state** — no button interaction. Device is advertising over BLE.
 
 ---
@@ -77,6 +108,19 @@ Shown automatically when a new Bluetooth host tries to pair. Displays the numeri
 
 ![Pin entry screen](IMG_3461.JPG)
 
+```
+┌────────────────────────┐
+│ 🔋 87%        ●        │  ← BLE connecting
+│                        │
+│   Confirm PIN on       │
+│   your device:         │
+│                        │
+│      3 2 5 1           │  ← passkey shown by BLE stack
+│                        │
+│  Confirm on host...    │
+└────────────────────────┘
+```
+
 **Waiting state** — no button interaction needed. After the host confirms the PIN, pairing completes and the device advances to the Lock Screen.
 
 ---
@@ -85,6 +129,20 @@ Shown automatically when a new Bluetooth host tries to pair. Displays the numeri
 The user must enter their personal 4-digit PIN before credentials can be accessed. This PIN is also the encryption key for stored credentials.
 
 ![Lock screen](IMG_3463.JPG)
+
+```
+┌────────────────────────┐
+│ 🔋 87%        ●        │
+│                        │
+│   Enter PIN:           │
+│                        │
+│    [ 1 ][ 2 ][ 3 ][ 4 ]│  ← active digit has cursor
+│      ▲                 │
+│                        │
+│  [A] cursor  [B] digit+│
+│  [A~500ms] confirm     │
+└────────────────────────┘
+```
 
 | Button | Action |
 |--------|--------|
@@ -101,6 +159,20 @@ Browse and send stored credentials.
 
 ![Account Selection](IMG_3469.JPG)
 
+```
+┌────────────────────────┐
+│ 🔋 87%   ●    [U→P]   │  ← send mode indicator
+│                        │
+│  2 / 10                │  ← slot index
+│  ──────────────────    │
+│  Account 2             │  ← account name
+│  User 2                │  ← username
+│  ••••••••              │  ← password (masked)
+│                        │
+│[A]next [B]send         │
+└────────────────────────┘
+```
+
 | Button | Action |
 |--------|--------|
 | **A press** | Next account |
@@ -116,13 +188,36 @@ The active send mode is highlighted in the top-right corner of the screen.
 ### 5. WiFi Admin Screen *(new)*
 Starts a Wi-Fi Access Point on the device. Any device that connects is automatically redirected to a web page where all 10 credential slots can be viewed and edited.
 
-**Display shows:**
 ```
-WiFi Admin
-SSID: ESPWV32-Admin
-Pass: vault1234
-IP:   192.168.4.1
-[A] Back
+┌────────────────────────┐
+│ WiFi Admin             │
+│                        │
+│ SSID: ESPWV32-Admin    │
+│ Pass: vault1234        │
+│                        │
+│ IP:   192.168.4.1      │
+│                        │
+│ [A] Back               │
+└────────────────────────┘
+```
+
+**Web interface** (rendered in browser at `http://192.168.4.1`):
+
+```
+╔══════════════════════════════════╗
+║  🔒 ESPWV32 Account Manager      ║
+╠══════════════════════════════════╣
+║ ┌──────────────────────────────┐ ║
+║ │ Slot 0                       │ ║
+║ │ Name     [Account 1        ] │ ║
+║ │ Username [User 1           ] │ ║
+║ │ Password [••••••••••       ] │ ║
+║ │                   [  Save  ] │ ║
+║ └──────────────────────────────┘ ║
+║ ┌──────────────────────────────┐ ║
+║ │ Slot 1   ...                 │ ║
+║ └──────────────────────────────┘ ║
+╚══════════════════════════════════╝
 ```
 
 | Button | Action |

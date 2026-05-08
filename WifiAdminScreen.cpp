@@ -6,9 +6,9 @@
 #include <DNSServer.h>
 #include "esp_wifi.h"
 #include "esp_coexist.h"
+#include "esp_random.h"
 
 #define WIFI_ADMIN_SSID "ESPWV32-Admin"
-#define WIFI_ADMIN_PASS "vault1234"
 #define DNS_PORT 53
 
 namespace espwv32 {
@@ -38,6 +38,10 @@ class WifiAdminScreen : public GenericScreen {
     void handle() override {
       if (_server != nullptr) _server->handleClient();
       if (_dns   != nullptr) _dns->processNextRequest();
+      // If _toNextScreen was set by an HTTP handler, the server is still
+      // running (we can't call stopAP() inside a server callback).
+      // Clean up here, one loop iteration after the response was delivered.
+      if (_toNextScreen && _server != nullptr) stopAP();
     }
 
     // Button A (any duration) → stop AP and return to account list
@@ -49,8 +53,19 @@ class WifiAdminScreen : public GenericScreen {
     Storage*          _storage  = nullptr;
     ble::BLEKeyboard* _keyboard = nullptr;
     uint8_t           _userPin[4];
-    WebServer* _server  = nullptr;
-    DNSServer* _dns     = nullptr;
+    WebServer* _server      = nullptr;
+    DNSServer* _dns         = nullptr;
+    String     _wifiPass;
+
+    // Generates a 12-character random password using unambiguous characters
+    static String generatePass() {
+      const char chars[] = "abcdefghjkmnpqrstuvwxyz23456789"; // 31 chars (no 0/O/l/1/I)
+      uint8_t rnd[12];
+      esp_fill_random(rnd, sizeof(rnd));
+      String pass;
+      for (int i = 0; i < 12; i++) pass += chars[rnd[i] % 31];
+      return pass;
+    }
 
     void _exitToAccounts() {
       stopAP();
@@ -88,7 +103,8 @@ class WifiAdminScreen : public GenericScreen {
       M5.Lcd.setCursor(0, 20);
       M5.Lcd.print("SSID: " WIFI_ADMIN_SSID);
       M5.Lcd.setCursor(0, 30);
-      M5.Lcd.print("Pass: " WIFI_ADMIN_PASS);
+      M5.Lcd.print("Pass: ");
+      M5.Lcd.print(_wifiPass);
       M5.Lcd.setCursor(0, 42);
       M5.Lcd.print("IP:   ");
       M5.Lcd.print(WiFi.softAPIP().toString());
@@ -120,7 +136,14 @@ class WifiAdminScreen : public GenericScreen {
       WiFi.mode(WIFI_AP);
       delay(200);
 
-      WiFi.softAP(WIFI_ADMIN_SSID, WIFI_ADMIN_PASS, 6);
+      // Load stored WiFi password; generate and persist one if not yet set
+      _wifiPass = _storage->getWifiPass();
+      if (_wifiPass.length() == 0) {
+        _wifiPass = generatePass();
+        _storage->setWifiPass(_wifiPass);
+      }
+
+      WiFi.softAP(WIFI_ADMIN_SSID, _wifiPass.c_str(), 6);
       // Disable WiFi modem sleep to prevent dropped data frames
       esp_wifi_set_ps(WIFI_PS_NONE);
       delay(500);
@@ -135,10 +158,6 @@ class WifiAdminScreen : public GenericScreen {
       _dns->start(DNS_PORT, "*", WiFi.softAPIP());
 
       _server = new WebServer(80);
-      _server->on("/",            HTTP_GET,  [this]() { handleRoot(); });
-      _server->on("/save",        HTTP_POST, [this]() { handleSave(); });
-      _server->on("/delete",      HTTP_POST, [this]() { handleDelete(); });
-      _server->on("/change-pin",  HTTP_POST, [this]() { handleChangePin(); });
       _server->onNotFound([this]() {
         _server->sendHeader("Location", "http://192.168.4.1/", true);
         _server->send(302, "text/plain", "");
@@ -199,8 +218,21 @@ class WifiAdminScreen : public GenericScreen {
       _server->send(302, "text/plain", "");
     }
 
-    void handleDelete() {
-      int idx = _server->arg("index").toInt();
+    void handleResetWifiPass() {
+      _wifiPass = generatePass();
+      _storage->setWifiPass(_wifiPass);
+      drawScreen(); // show the new password on the device screen before AP closes
+      // Send a final page to the browser — AP stops on the next handle() iteration
+      _server->send(200, "text/html",
+        "<!DOCTYPE html><html><head><meta charset='UTF-8'></head><body>"
+        "<h2>&#x1F4F6; New WiFi password generated</h2>"
+        "<p>The new password is shown on the device screen.</p>"
+        "<p>The access point is now closing.</p>"
+        "</body></html>");
+      _toNextScreen = true; // handle() will call stopAP() on the next iteration
+    }
+
+    void handleDelete() {      int idx = _server->arg("index").toInt();
       if (idx < 0 || idx >= Storage::maxSlots()) {
         _server->send(400, "text/plain", "Invalid index");
         return;

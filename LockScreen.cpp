@@ -41,7 +41,15 @@ class LockScreen : public GenericScreen {
 
     void buttonMediumPressedA() override {
       if (_mode == ENTER) {
-        _toNextScreen = true;
+        Storage storage;
+        if (!storage.verifyPin(_pin)) {
+          showError();
+          delay(1500);
+          reset();
+          show();
+        } else {
+          _toNextScreen = true;
+        }
       } else {
         if (!_confirming) {
           // Move to confirmation phase

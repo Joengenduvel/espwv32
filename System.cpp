@@ -21,7 +21,9 @@ class System {
     }
 
     static uint8_t getBatteryPercentage() {
-      return map(getBatteryVoltage(), 3200, 4200, 0, 100);
+      // AXP192 on M5StickC charges to ~4130 mV in practice, not 4200 mV.
+      // constrain() keeps the value within 0-100 regardless of ADC variance.
+      return constrain(map(getBatteryVoltage(), 3200, 4130, 0, 100), 0, 100);
     }
 
     static bool isCharging() {

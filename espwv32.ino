@@ -78,7 +78,7 @@ void setup() {
   // Must be called BEFORE BLEDevice::init() (inside BLEKeyboard ctor).
   esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
 
-  _keyboard = new ble::BLEKeyboard("");
+  _keyboard = new ble::BLEKeyboard("ESPWV32");
 
   _startScreen            = new espwv32::StartScreen("");
   _pinScreen              = new espwv32::PinScreen();

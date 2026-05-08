@@ -65,17 +65,21 @@ class WifiAdminScreen : public GenericScreen {
 
       M5.Lcd.setTextSize(1);
       M5.Lcd.setTextColor(WHITE);
-      M5.Lcd.setCursor(0, 20);
+      M5.Lcd.setCursor(0, 18);
       M5.Lcd.print("SSID: " WIFI_ADMIN_SSID);
-      M5.Lcd.setCursor(0, 30);
-      M5.Lcd.print("Pass: ");
-      M5.Lcd.print(_admin->getWifiPass());
-      M5.Lcd.setCursor(0, 42);
+      M5.Lcd.setCursor(0, 28);
       M5.Lcd.print("IP:   ");
       M5.Lcd.print(_admin->getIP());
 
+      M5.Lcd.setCursor(0, 38);
+      M5.Lcd.print("Pass:");
+      M5.Lcd.setTextSize(2);
+      M5.Lcd.setCursor(0, 46);
+      M5.Lcd.print(_admin->getWifiPass());
+
+      M5.Lcd.setTextSize(1);
       M5.Lcd.setTextColor(DARKGREY);
-      M5.Lcd.setCursor(0, 58);
+      M5.Lcd.setCursor(0, 68);
       M5.Lcd.print("[A] Back");
     }
 };

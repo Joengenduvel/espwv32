@@ -111,15 +111,8 @@ void loop() {
       case espwv32::ScreenType::LOCK:
         {
           uint8_t* userPin = ((espwv32::LockScreen*)_lockScreen)->getCode();
-          espwv32::Storage storage;
-          if (storage.getSlotCount() > 0) {
-            ((espwv32::AccountSelectionScreen*)_accountSelectionScreen)->updatePin(userPin);
-            _currentScreen = _accountSelectionScreen;
-          } else {
-            // No accounts yet — guide the user to WiFi Admin to add some
-            ((espwv32::WifiAdminScreen*)_wifiAdminScreen)->updatePin(userPin);
-            _currentScreen = _wifiAdminScreen;
-          }
+          ((espwv32::AccountSelectionScreen*)_accountSelectionScreen)->updatePin(userPin);
+          _currentScreen = _accountSelectionScreen;
         }
         break;
       case espwv32::ScreenType::ACCOUNT_SELECTION:
@@ -131,7 +124,8 @@ void loop() {
         break;
       case espwv32::ScreenType::WIFI_ADMIN:
         {
-          _accountSelectionScreen->reset();
+          uint8_t* pin = ((espwv32::WifiAdminScreen*)_wifiAdminScreen)->getPin();
+          ((espwv32::AccountSelectionScreen*)_accountSelectionScreen)->updatePin(pin);
           _currentScreen = _accountSelectionScreen;
         }
         break;

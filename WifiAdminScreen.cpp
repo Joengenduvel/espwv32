@@ -17,6 +17,8 @@ class WifiAdminScreen : public GenericScreen {
       reset();
     }
 
+    uint8_t* getPin() { return _admin->getPin(); }
+
     ScreenType getType() { return WIFI_ADMIN; }
 
     void handle() override {

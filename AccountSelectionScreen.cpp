@@ -29,12 +29,14 @@ class AccountSelectionScreen: public GenericScreen {
       GenericScreen::reset();
     }
     virtual void buttonPressedA() {
+      if (_slotCount == 0) return;
       _accountIndex++;
       if (_accountIndex >= _slotCount)
         _accountIndex = 0;
       show();
     }
     virtual void buttonMediumPressedA() {
+      if (_slotCount == 0) return;
       if (_accountIndex == 0)
         _accountIndex = _slotCount - 1;
       else
@@ -92,7 +94,21 @@ class AccountSelectionScreen: public GenericScreen {
       M5.Lcd.fillScreen(BLACK);
       M5.Lcd.setRotation(3);
 
+      if (_slotCount == 0) {
+        M5.Lcd.setCursor(2, 20);
+        M5.Lcd.setTextSize(2);
+        M5.Lcd.setTextColor(YELLOW);
+        M5.Lcd.print("No accounts");
+        M5.Lcd.setCursor(2, 42);
+        M5.Lcd.setTextSize(1);
+        M5.Lcd.setTextColor(DARKGREY);
+        M5.Lcd.print("Hold [A] for WiFi Admin");
+        return;
+      }
+
       _currentAccount = _storage->read(_accountIndex, _userPin);
+      // Guarantee null-termination in case of storage corruption
+      _currentAccount.name[sizeof(_currentAccount.name) - 1] = '\0';
 
       M5.Lcd.setCursor(2, 2);
       M5.Lcd.setTextSize(3);

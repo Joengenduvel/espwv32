@@ -33,8 +33,9 @@ class WifiAdmin {
     // true (once) when the WiFi password was just regenerated
     bool passChanged()   { bool v = _passChanged; _passChanged = false; return v; }
 
-    String getWifiPass() { return _wifiPass; }
-    String getIP()       { return WiFi.softAPIP().toString(); }
+    String getWifiPass()  { return _wifiPass; }
+    String getIP()        { return WiFi.softAPIP().toString(); }
+    uint8_t* getPin()     { return _userPin; }
 
   private:
     Storage*          _storage     = nullptr;

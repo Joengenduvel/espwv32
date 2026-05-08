@@ -39,6 +39,7 @@ void WifiAdmin::start() {
 
   WiFi.softAP(WIFI_ADMIN_SSID, _wifiPass.c_str(), 6);
   esp_wifi_set_ps(WIFI_PS_NONE); // prevent modem sleep dropping data frames
+  esp_wifi_set_max_tx_power(44); // ~11 dBm — sufficient at arm's length, saves ~50 mA
   delay(500);
 
   unsigned long t = millis();

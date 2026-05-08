@@ -13,7 +13,7 @@
 #include "System.cpp"
 #include "esp_bt.h"
 
-
+// ── Globals ───────────────────────────────────────────────────────────────────
 
 espwv32::GenericScreen* _currentScreen;
 espwv32::GenericScreen* _startScreen;
@@ -22,7 +22,11 @@ espwv32::GenericScreen* _lockScreen;
 espwv32::GenericScreen* _accountSelectionScreen;
 espwv32::GenericScreen* _wifiAdminScreen;
 
+void setScreen(uint8_t brightness) {
+  M5.Axp.ScreenBreath(brightness);
+}
 
+// ── BLE callbacks ─────────────────────────────────────────────────────────────
 
 class MyKeyboardCallbacks: public ble::BLEKeyboardCallbacks {
     void authenticationInfo(uint32_t pin) {
@@ -46,19 +50,22 @@ class MyKeyboardCallbacks: public ble::BLEKeyboardCallbacks {
       Serial.println("disconnected");
       // Ignore BLE disconnect while in WiFi admin — BLE advertising is
       // stopped but an existing connection is kept alive; if it drops
-      // naturally we stay in admin mode rather than jumping to Start Screen
+      // naturally we stay in admin mode rather than jumping to Start Screen.
       if (_currentScreen->getType() == espwv32::ScreenType::WIFI_ADMIN) return;
       _currentScreen = _startScreen;
       _currentScreen->reset();
     }
 };
 
+// ── Setup ─────────────────────────────────────────────────────────────────────
+
 void setup() {
   setCpuFrequencyMhz(80);
 
   Serial.begin(115200);
   M5.begin();
-  M5.Axp.ScreenBreath(15); // 7=off, 15=max brightness
+  setScreen(15); // 7=off, 15=max brightness
+
   // Probe the largest EEPROM size the library accepts, halving until it works.
   // On ESP32 the Arduino EEPROM library is capped at 4096 bytes (one flash page).
   int eepromSize = 4096;
@@ -86,23 +93,27 @@ void setup() {
   _accountSelectionScreen = new espwv32::AccountSelectionScreen(); // owns the BLEKeyboard
   _wifiAdminScreen        = new espwv32::WifiAdminScreen();
 
-  // BLE-only mode at boot — give BLE full radio priority
+  // BLE-only mode at boot — give BLE full radio priority.
   esp_coex_preference_set(ESP_COEX_PREFER_BT);
 
   _startScreen->reset();
   _currentScreen = _startScreen;
 
-  ((espwv32::AccountSelectionScreen*)_accountSelectionScreen)->setCallbacks(new MyKeyboardCallbacks());}
+  ((espwv32::AccountSelectionScreen*)_accountSelectionScreen)->setCallbacks(new MyKeyboardCallbacks());
+}
+
+// ── Loop ──────────────────────────────────────────────────────────────────────
 
 void loop() {
   M5.update();
   _currentScreen->handle();
 
+  // ── Screen transitions ────────────────────────────────────────────────────
   if (_currentScreen->next()) {
     switch (_currentScreen->getType()) {
       case espwv32::ScreenType::SET_PIN:
         {
-          // First-time PIN set — go straight to WiFi Admin to load accounts
+          // First-time PIN set — go straight to WiFi Admin to load accounts.
           uint8_t* pin = ((espwv32::LockScreen*)_lockScreen)->getCode();
           ((espwv32::WifiAdminScreen*)_wifiAdminScreen)->updatePin(pin);
           _currentScreen = _wifiAdminScreen;
@@ -130,20 +141,20 @@ void loop() {
         }
         break;
       default:
-        Serial.println("unknown type");
+        Serial.println("unknown screen type");
     }
   }
 
-
+  // ── Battery status (updated every 30 s) ──────────────────────────────────
   static unsigned long lastStatusUpdate = 0;
-  if (millis() - lastStatusUpdate >= 1000) {
+  if (millis() - lastStatusUpdate >= 30000) {
     lastStatusUpdate = millis();
     _currentScreen->updateBatteryPercentage(
       espwv32::System::getBatteryPercentage(),
       espwv32::System::isCharging());
   }
 
-
+  // ── Button handling ───────────────────────────────────────────────────────
   if (M5.BtnA.wasReleasefor(1000)) {
     Serial.println("A long pressed");
     _currentScreen->buttonLongPressedA();
@@ -155,7 +166,6 @@ void loop() {
     _currentScreen->buttonPressedA();
   }
 
-
   if (M5.BtnB.wasReleasefor(1000)) {
     Serial.println("B long pressed");
     _currentScreen->buttonLongPressedB();
@@ -165,5 +175,28 @@ void loop() {
   } else if (M5.BtnB.wasReleasefor(1)) {
     Serial.println("B pressed");
     _currentScreen->buttonPressedB();
+  }
+
+  // ── Screen dimming ────────────────────────────────────────────────────────
+  static unsigned long lastActivity = millis();
+  static uint8_t currentBrightness = 15;
+
+  bool anyButton =
+    M5.BtnA.wasReleasefor(1) || M5.BtnA.isPressed() ||
+    M5.BtnB.wasReleasefor(1) || M5.BtnB.isPressed();
+
+  if (anyButton) {
+    lastActivity = millis();
+    if (currentBrightness != 15) {
+      currentBrightness = 15;
+      setScreen(15);
+    }
+  } else {
+    unsigned long idle = millis() - lastActivity;
+    uint8_t targetBrightness = (idle > 30000) ? 7 : (idle > 15000) ? 9 : 15;
+    if (targetBrightness != currentBrightness) {
+      currentBrightness = targetBrightness;
+      setScreen(currentBrightness);
+    }
   }
 }

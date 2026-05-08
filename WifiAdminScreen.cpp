@@ -1,8 +1,11 @@
 #include "GenericScreen.h"
 #include "Storage.h"
+#include "ble.h"
 #include <WiFi.h>
 #include <WebServer.h>
 #include <DNSServer.h>
+#include "esp_wifi.h"
+#include "esp_coexist.h"
 
 #define WIFI_ADMIN_SSID "ESPWV32-Admin"
 #define WIFI_ADMIN_PASS "vault1234"
@@ -12,7 +15,8 @@ namespace espwv32 {
 
 class WifiAdminScreen : public GenericScreen {
   public:
-    WifiAdminScreen() {
+    WifiAdminScreen(ble::BLEKeyboard* keyboard) {
+      _keyboard = keyboard;
       _storage = new Storage();
       memset(_userPin, 0, 4);
     }
@@ -42,8 +46,9 @@ class WifiAdminScreen : public GenericScreen {
     void buttonLongPressedA()  override { _exitToAccounts(); }
 
   private:
-    Storage*   _storage = nullptr;
-    uint8_t    _userPin[4];
+    Storage*          _storage  = nullptr;
+    ble::BLEKeyboard* _keyboard = nullptr;
+    uint8_t           _userPin[4];
     WebServer* _server  = nullptr;
     DNSServer* _dns     = nullptr;
 
@@ -96,20 +101,31 @@ class WifiAdminScreen : public GenericScreen {
     void startAP() {
       if (_server != nullptr) return; // already running
 
-      // Boost CPU for concurrent BLE + WiFi
       setCpuFrequencyMhz(240);
 
-      // Clear any previous WiFi state so Windows doesn't get a stale handshake
+      // Disconnect any active BLE connection and stop advertising.
+      // An active BLE connection does continuous 37-channel frequency hopping
+      // which overwhelms the coexistence module and prevents DHCP packets
+      // from being delivered. Advertising-only is not enough — the connection
+      // itself must be dropped.
+      if (_keyboard != nullptr) {
+        if (_keyboard->isConnected()) _keyboard->disconnect();
+        _keyboard->stopAdvertising();
+      }
+      // Give WiFi priority in the BLE/WiFi coexistence scheduler
+      esp_coex_preference_set(ESP_COEX_PREFER_WIFI);
+      delay(200);
+
       WiFi.persistent(false);
-      WiFi.disconnect(true);
-      delay(100);
-
-      // AP-only mode; channel 6 avoids overlap with BLE advertising channels (37/38/39)
       WiFi.mode(WIFI_AP);
-      delay(100); // let the radio settle before starting the AP
-      WiFi.softAP(WIFI_ADMIN_SSID, WIFI_ADMIN_PASS, 6);
+      delay(200);
 
-      // Wait until the AP is fully up (IP assigned), max 3 s
+      WiFi.softAP(WIFI_ADMIN_SSID, WIFI_ADMIN_PASS, 6);
+      // Disable WiFi modem sleep to prevent dropped data frames
+      esp_wifi_set_ps(WIFI_PS_NONE);
+      delay(500);
+
+      // Wait until the AP IP is ready, max 3 s
       unsigned long t = millis();
       while (WiFi.softAPIP() == IPAddress(0, 0, 0, 0) && millis() - t < 3000) {
         delay(50);
@@ -121,13 +137,18 @@ class WifiAdminScreen : public GenericScreen {
       _server = new WebServer(80);
       _server->on("/",      HTTP_GET,  [this]() { handleRoot(); });
       _server->on("/save",  HTTP_POST, [this]() { handleSave(); });
-      // Captive-portal redirect for any other URL
       _server->onNotFound([this]() {
         _server->sendHeader("Location", "http://192.168.4.1/", true);
         _server->send(302, "text/plain", "");
       });
       _server->begin();
-      Serial.println("WiFi Admin AP started: " WIFI_ADMIN_SSID);
+
+      // When all clients disconnect, return to the account screen automatically
+      WiFi.onEvent([this](WiFiEvent_t event, WiFiEventInfo_t info) {
+        if (WiFi.softAPgetStationNum() == 0) {
+          _exitToAccounts();
+        }
+      }, ARDUINO_EVENT_WIFI_AP_STADISCONNECTED);
     }
 
     void stopAP() {
@@ -135,9 +156,9 @@ class WifiAdminScreen : public GenericScreen {
       if (_dns    != nullptr) { _dns->stop();    delete _dns;    _dns    = nullptr; }
       WiFi.softAPdisconnect(true);
       WiFi.mode(WIFI_OFF);
-      // Restore lower CPU frequency to save power
       setCpuFrequencyMhz(80);
-      Serial.println("WiFi Admin AP stopped");
+      esp_coex_preference_set(ESP_COEX_PREFER_BALANCE);
+      if (_keyboard != nullptr) _keyboard->startAdvertising();
     }
 
     // ---------- web handlers ----------
@@ -159,7 +180,6 @@ class WifiAdminScreen : public GenericScreen {
       _server->arg("password").toCharArray(creds.password, sizeof(creds.password));
       _storage->store(idx, creds, _userPin);
       EEPROM.commit();
-      Serial.printf("Saved account %d: %s\n", idx, creds.name);
       _server->sendHeader("Location", "/", true);
       _server->send(302, "text/plain", "");
     }

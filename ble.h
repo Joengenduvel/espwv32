@@ -284,6 +284,16 @@ class BLEKeyboard : private BLEServerCallbacks,  private BLESecurityCallbacks, p
 
     void setCallbacks(BLEKeyboardCallbacks* callbacks);
 
+    void stopAdvertising() {
+      BLEDevice::getAdvertising()->stop();
+      Serial.println("BLE advertising stopped");
+    }
+
+    void startAdvertising() {
+      BLEDevice::getAdvertising()->start();
+      Serial.println("BLE advertising started");
+    }
+
 };
 }
 #endif /* MY_CLASS_BLEKeyboard */

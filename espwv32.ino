@@ -8,6 +8,7 @@
 #include "WifiAdminScreen.cpp"
 #include "Storage.h"
 #include "System.cpp"
+#include "esp_bt.h"
 
 
 
@@ -36,6 +37,9 @@ class MyKeyboardCallbacks: public ble::BLEKeyboardCallbacks {
     }
     void disconnected() {
       Serial.println("disconnected");
+      // Ignore BLE disconnect while in WiFi admin — we disconnect BLE
+      // deliberately when the AP starts; we do NOT want to leave admin mode
+      if (_currentScreen->getType() == espwv32::ScreenType::WIFI_ADMIN) return;
       _currentScreen = _startScreen;
       _currentScreen->reset();
     }
@@ -49,13 +53,24 @@ void setup() {
   M5.Axp.ScreenBreath(15); // 7=off, 15=max brightness
   EEPROM.begin(1000);
 
+  // Pre-initialise the WiFi stack before BLE to ensure the esp-netif
+  // layer is ready before BLE claims heap.
+  WiFi.persistent(false);
+  WiFi.mode(WIFI_OFF);
+
+  // Release Classic BT controller memory — this project uses BLE only.
+  // Classic BT reserves ~70 KB by default; freeing it gives lwIP enough
+  // heap to allocate packet buffers when WiFi AP and BLE coexist.
+  // Must be called BEFORE BLEDevice::init() (inside BLEKeyboard ctor).
+  esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
+
   _keyboard = new ble::BLEKeyboard("");
 
   _startScreen = new espwv32::StartScreen("");
   _pinScreen = new espwv32::PinScreen();
   _lockScreen = new espwv32::LockScreen();
   _accountSelectionScreen = new espwv32::AccountSelectionScreen(_keyboard);
-  _wifiAdminScreen = new espwv32::WifiAdminScreen();
+  _wifiAdminScreen = new espwv32::WifiAdminScreen(_keyboard);
 
   _startScreen->reset();
   _currentScreen = _startScreen;
@@ -103,10 +118,15 @@ void loop() {
 
 
   static unsigned long lastStatusUpdate = 0;
-  if (millis() - lastStatusUpdate >= 77) {
+  if (millis() - lastStatusUpdate >= 1000) {
     lastStatusUpdate = millis();
+    bool inWifiAdmin = _currentScreen->getType() == espwv32::ScreenType::WIFI_ADMIN;
     _currentScreen->updateBatteryPercentage(espwv32::System::getBatteryPercentage(), espwv32::System::isCharging());
-    _keyboard->setBatteryLevel(espwv32::System::getBatteryPercentage());
+    // Skip BLE radio operations while WiFi admin is active — they compete
+    // for the radio and can drop DHCP packets
+    if (!inWifiAdmin) {
+      _keyboard->setBatteryLevel(espwv32::System::getBatteryPercentage());
+    }
     _currentScreen->updateConnected(_keyboard->isConnected());
   }
 

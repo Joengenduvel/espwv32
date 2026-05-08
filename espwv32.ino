@@ -32,9 +32,15 @@ class MyKeyboardCallbacks: public ble::BLEKeyboardCallbacks {
 
     void connected() {
       Serial.println("connected");
-      _lockScreen->reset();
+      espwv32::Storage storage;
+      espwv32::LockScreen* lock = (espwv32::LockScreen*)_lockScreen;
+      lock->setMode(storage.isPinConfigured()
+        ? espwv32::LockScreen::ENTER
+        : espwv32::LockScreen::SET);
+      lock->reset();
       _currentScreen = _lockScreen;
     }
+
     void disconnected() {
       Serial.println("disconnected");
       // Ignore BLE disconnect while in WiFi admin — we disconnect BLE
@@ -51,7 +57,15 @@ void setup() {
   Serial.begin(115200);
   M5.begin();
   M5.Axp.ScreenBreath(15); // 7=off, 15=max brightness
-  EEPROM.begin(1000);
+  // Probe the largest EEPROM size the library accepts, halving until it works.
+  // On ESP32 the Arduino EEPROM library is capped at 4096 bytes (one flash page).
+  int eepromSize = 4096;
+  while (eepromSize >= (int)sizeof(espwv32::Credentials) + 2) {
+    if (EEPROM.begin(eepromSize)) break;
+    eepromSize /= 2;
+  }
+  espwv32::Storage::setSize(eepromSize);
+  Serial.printf("EEPROM: %d bytes → max slots: %d\n", eepromSize, espwv32::Storage::maxSlots());
 
   // Pre-initialise the WiFi stack before BLE to ensure the esp-netif
   // layer is ready before BLE claims heap.
@@ -66,21 +80,17 @@ void setup() {
 
   _keyboard = new ble::BLEKeyboard("");
 
-  _startScreen = new espwv32::StartScreen("");
-  _pinScreen = new espwv32::PinScreen();
-  _lockScreen = new espwv32::LockScreen();
+  _startScreen            = new espwv32::StartScreen("");
+  _pinScreen              = new espwv32::PinScreen();
+  _lockScreen             = new espwv32::LockScreen();
   _accountSelectionScreen = new espwv32::AccountSelectionScreen(_keyboard);
-  _wifiAdminScreen = new espwv32::WifiAdminScreen(_keyboard);
+  _wifiAdminScreen        = new espwv32::WifiAdminScreen(_keyboard);
 
   _startScreen->reset();
   _currentScreen = _startScreen;
 
   _keyboard->setCallbacks(new MyKeyboardCallbacks());
-
-  storeDummyAccounts();
 }
-
-
 
 void loop() {
   M5.update();
@@ -88,12 +98,26 @@ void loop() {
 
   if (_currentScreen->next()) {
     switch (_currentScreen->getType()) {
+      case espwv32::ScreenType::SET_PIN:
+        {
+          // First-time PIN set — go straight to WiFi Admin to load accounts
+          uint8_t* pin = ((espwv32::LockScreen*)_lockScreen)->getCode();
+          ((espwv32::WifiAdminScreen*)_wifiAdminScreen)->updatePin(pin);
+          _currentScreen = _wifiAdminScreen;
+        }
+        break;
       case espwv32::ScreenType::LOCK:
         {
           uint8_t* userPin = ((espwv32::LockScreen*)_lockScreen)->getCode();
-          Serial.printf("Initialising Account Selection with pin %d%d%d%d\n", userPin[0], userPin[1], userPin[2], userPin[3]);
-          ((espwv32::AccountSelectionScreen*)_accountSelectionScreen)->updatePin(userPin);
-          _currentScreen = _accountSelectionScreen;
+          espwv32::Storage storage;
+          if (storage.getSlotCount() > 0) {
+            ((espwv32::AccountSelectionScreen*)_accountSelectionScreen)->updatePin(userPin);
+            _currentScreen = _accountSelectionScreen;
+          } else {
+            // No accounts yet — guide the user to WiFi Admin to add some
+            ((espwv32::WifiAdminScreen*)_wifiAdminScreen)->updatePin(userPin);
+            _currentScreen = _wifiAdminScreen;
+          }
         }
         break;
       case espwv32::ScreenType::ACCOUNT_SELECTION:
@@ -105,14 +129,12 @@ void loop() {
         break;
       case espwv32::ScreenType::WIFI_ADMIN:
         {
-          // Return to account list with the same pin (already set)
           _accountSelectionScreen->reset();
           _currentScreen = _accountSelectionScreen;
         }
         break;
       default:
         Serial.println("unknown type");
-
     }
   }
 
@@ -176,43 +198,4 @@ void loop() {
 
 
 
-}
-
-void storeDummyAccounts() {
-  uint8_t _userPin[4] = {1, 2, 3, 4};
-  espwv32::Credentials storedCredentials[] = {
-    {
-      "Account 1",
-      "User 1",
-      "Password 1"
-    },
-    {
-      "Account 2",
-      "User 2",
-      "Password 2"
-    },
-    {
-      "Account 3",
-      "User 3",
-      "Password 3"
-    },
-    {
-      "Account 4",
-      "User 4",
-      "Password 4"
-    }
-  };
-  Serial.println("inserting dummy credentials");
-  espwv32::Storage storage;
-  //Initialising accounts until this feature is implemented
-  for (byte index = 0; index < sizeof(storedCredentials) / sizeof(espwv32::Credentials); index++) {
-    espwv32::Credentials credsR = storage.read(index, _userPin);
-    if (!String(storedCredentials[index].name).equals(String(credsR.name))) {
-      Serial.printf("Store %d = %s \n", index, storedCredentials[index].name);
-      storage.store(index, storedCredentials[index], _userPin);
-    } else {
-      Serial.printf("Verified %d = %s == %s \n", index, credsR.name, storedCredentials[index].name);
-    }
-  }
-  Serial.println(EEPROM.commit());
 }

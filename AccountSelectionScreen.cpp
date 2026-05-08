@@ -14,7 +14,7 @@ class AccountSelectionScreen: public GenericScreen {
     }
     void updatePin(uint8_t *userPin) {
       memcpy(_userPin, userPin, 4);
-      Serial.printf("Account Selection with pin %d%d%d%d\n", _userPin[0], _userPin[1], _userPin[2], _userPin[3]);
+      _slotCount = _storage->getSlotCount();
       reset();
     }
     ~AccountSelectionScreen() {
@@ -27,17 +27,15 @@ class AccountSelectionScreen: public GenericScreen {
     }
     virtual void buttonPressedA() {
       _accountIndex++;
-      if (_accountIndex >= NUM_ACCOUNTS)
+      if (_accountIndex >= _slotCount)
         _accountIndex = 0;
-      Serial.printf("Next %d \n", _accountIndex);
       show();
     }
     virtual void buttonMediumPressedA() {
       if (_accountIndex == 0)
-        _accountIndex = NUM_ACCOUNTS - 1;
+        _accountIndex = _slotCount - 1;
       else
         _accountIndex--;
-      Serial.printf("Previous %d \n", _accountIndex);
       show();
     }
     virtual void buttonPressedB() {
@@ -131,8 +129,7 @@ class AccountSelectionScreen: public GenericScreen {
     
   private:
     uint8_t _userPin[4];
-
-    const uint8_t NUM_ACCOUNTS = 10; // TODO: move to storage
+    uint8_t _slotCount = 0;
     Storage* _storage;
     uint8_t _accountIndex = 0;
     enum DataToSend {

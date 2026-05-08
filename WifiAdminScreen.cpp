@@ -135,8 +135,9 @@ class WifiAdminScreen : public GenericScreen {
       _dns->start(DNS_PORT, "*", WiFi.softAPIP());
 
       _server = new WebServer(80);
-      _server->on("/",      HTTP_GET,  [this]() { handleRoot(); });
-      _server->on("/save",  HTTP_POST, [this]() { handleSave(); });
+      _server->on("/",            HTTP_GET,  [this]() { handleRoot(); });
+      _server->on("/save",        HTTP_POST, [this]() { handleSave(); });
+      _server->on("/change-pin",  HTTP_POST, [this]() { handleChangePin(); });
       _server->onNotFound([this]() {
         _server->sendHeader("Location", "http://192.168.4.1/", true);
         _server->send(302, "text/plain", "");
@@ -164,12 +165,42 @@ class WifiAdminScreen : public GenericScreen {
     // ---------- web handlers ----------
 
     void handleRoot() {
-      _server->send(200, "text/html", buildPage());
+      String status = _server->arg("status");
+      _server->send(200, "text/html", buildPage(status));
+    }
+
+    void handleChangePin() {
+      // Parse each 4-digit PIN from individual digit fields
+      auto parsePin = [this](const char* prefix, uint8_t out[4]) {
+        for (int i = 0; i < 4; i++) {
+          String key = String(prefix) + String(i);
+          out[i] = (uint8_t)constrain(_server->arg(key).toInt(), 0, 9);
+        }
+      };
+
+      uint8_t current[4], next[4], confirm[4];
+      parsePin("cur", current);
+      parsePin("new", next);
+      parsePin("cfm", confirm);
+
+      if (memcmp(next, confirm, 4) != 0) {
+        _server->sendHeader("Location", "/?status=pin_mismatch", true);
+        _server->send(302, "text/plain", "");
+        return;
+      }
+      if (!_storage->resetPin(current, next)) {
+        _server->sendHeader("Location", "/?status=pin_wrong", true);
+        _server->send(302, "text/plain", "");
+        return;
+      }
+      memcpy(_userPin, next, 4); // update session PIN so saved accounts still decrypt
+      _server->sendHeader("Location", "/?status=pin_ok", true);
+      _server->send(302, "text/plain", "");
     }
 
     void handleSave() {
       int idx = _server->arg("index").toInt();
-      if (idx < 0 || idx >= 10) {
+      if (idx < 0 || idx >= Storage::maxSlots()) {
         _server->send(400, "text/plain", "Invalid index");
         return;
       }
@@ -186,7 +217,7 @@ class WifiAdminScreen : public GenericScreen {
 
     // ---------- page builder ----------
 
-    String buildPage() {
+    String buildPage(String status = "") {
       String html =
         "<!DOCTYPE html><html><head>"
         "<meta charset='UTF-8'>"
@@ -195,16 +226,57 @@ class WifiAdminScreen : public GenericScreen {
         "<style>"
         "body{font-family:sans-serif;max-width:560px;margin:24px auto;padding:0 12px;background:#f4f4f4}"
         "h1{font-size:1.4em;color:#333}"
+        "h2{font-size:1em;color:#555;margin:0 0 8px}"
         ".card{background:#fff;border-radius:6px;padding:12px;margin:10px 0;box-shadow:0 1px 3px rgba(0,0,0,.15)}"
         "label{display:block;font-size:.8em;color:#666;margin-top:6px}"
         "input[type=text],input[type=password]{width:100%;padding:6px;box-sizing:border-box;border:1px solid #ccc;border-radius:3px}"
+        ".pin-row{display:flex;gap:6px}"
+        ".pin-row input{width:48px;text-align:center;padding:6px;border:1px solid #ccc;border-radius:3px;font-size:1.2em}"
         "button{margin-top:8px;background:#0069d9;color:#fff;border:none;padding:7px 18px;border-radius:3px;cursor:pointer}"
         "button:hover{background:#0053aa}"
+        ".ok{color:#1a7f1a;font-weight:bold;margin-bottom:8px}"
+        ".err{color:#c00;font-weight:bold;margin-bottom:8px}"
         "</style></head><body>"
         "<h1>&#x1F512; ESPWV32 Account Manager</h1>";
 
-      for (int i = 0; i < 10; i++) {
-        Credentials c = _storage->read(i, _userPin);
+      // ── Status banner ──────────────────────────────────────────────────────
+      if (status == "pin_ok")
+        html += "<p class='ok'>&#10003; PIN changed successfully.</p>";
+      else if (status == "pin_wrong")
+        html += "<p class='err'>&#10007; Current PIN incorrect.</p>";
+      else if (status == "pin_mismatch")
+        html += "<p class='err'>&#10007; New PINs do not match.</p>";
+
+      // ── Change PIN card ────────────────────────────────────────────────────
+      auto pinInputs = [](const char* prefix, const char* legend) -> String {
+        String s = String("<label>") + legend + "</label><div class='pin-row'>";
+        for (int i = 0; i < 4; i++)
+          s += "<input type='number' name='" + String(prefix) + String(i) +
+               "' min='0' max='9' value='0' required>";
+        return s + "</div>";
+      };
+
+      html += "<div class='card'><h2>&#x1F511; Change PIN</h2>"
+              "<form method='POST' action='/change-pin'>" +
+              pinInputs("cur", "Current PIN") +
+              pinInputs("new", "New PIN") +
+              pinInputs("cfm", "Confirm New PIN") +
+              "<button type='submit'>Change PIN</button>"
+              "</form></div>";
+
+      // ── Account slots ──────────────────────────────────────────────────────
+      uint8_t slotCount   = _storage->getSlotCount();
+      uint8_t slotsToShow = (uint8_t)min((int)slotCount + 1, Storage::maxSlots());
+
+      for (int i = 0; i < slotsToShow; i++) {
+        // Slots 0 .. slotCount-1 are saved — read and decrypt from EEPROM.
+        // Slot slotCount is a blank entry for adding a new account — show empty fields.
+        Credentials c;
+        if (i < slotCount) {
+          c = _storage->read(i, _userPin);
+        } else {
+          memset(&c, 0, sizeof(c));
+        }
         html += "<div class='card'>"
                 "<form method='POST' action='/save'>"
                 "<input type='hidden' name='index' value='" + String(i) + "'>"

@@ -48,34 +48,61 @@ A password vault you can take with you. Credentials are stored encrypted on the 
 
 ## Screen Flow
 
+### First boot (no PIN configured)
 ```
-┌─────────────┐   BLE pair     ┌────────────┐   BLE auth OK   ┌────────────┐
-│ Start Screen│ ─────────────► │ Pin Screen │ ───────────────► │ Lock Screen│
-└─────────────┘                └────────────┘                  └────────────┘
-                                                                      │
-                                                              PIN entered (A medium)
-                                                                      │
-                                                                      ▼
-                                                           ┌──────────────────────┐
-                                                           │ Account Selection    │
-                                                           └──────────────────────┘
-                                                                      │
-                                                            B long press
-                                                                      │
-                                                                      ▼
-                                                           ┌──────────────────────┐
-                                                           │  WiFi Admin Screen   │
-                                                           └──────────────────────┘
-                                                                      │
-                                                              A (any press)
-                                                                      │
-                                                                      ▼
-                                                           ┌──────────────────────┐
-                                                           │ Account Selection    │
-                                                           └──────────────────────┘
+┌─────────────┐  BLE pair   ┌────────────┐  BLE auth OK  ┌───────────────┐
+│ Start Screen│ ──────────► │ Pin Screen │ ─────────────► │ Set PIN Screen│
+└─────────────┘             └────────────┘                └───────────────┘
+                                                                  │
+                                                          PIN confirmed (A medium ×2)
+                                                                  │
+                                                                  ▼
+                                                         ┌──────────────────┐
+                                                         │  WiFi Admin      │  ← add accounts here
+                                                         └──────────────────┘
+                                                                  │
+                                                          A (any press) or client disconnects
+                                                                  │
+                                                                  ▼
+                                                         ┌──────────────────┐
+                                                         │ Account Selection│
+                                                         └──────────────────┘
 ```
 
-> If BLE disconnects at any point, the device returns to the **Start Screen**.
+### Normal use (PIN configured, accounts exist)
+```
+┌─────────────┐  BLE pair   ┌────────────┐  BLE auth OK  ┌────────────┐
+│ Start Screen│ ──────────► │ Pin Screen │ ─────────────► │ Lock Screen│
+└─────────────┘             └────────────┘                └────────────┘
+                                                                 │
+                                                         PIN entered (A medium)
+                                                                 │
+                                                                 ▼
+                                                        ┌──────────────────┐
+                                                        │ Account Selection│
+                                                        └──────────────────┘
+                                                                 │
+                                                          B long press
+                                                                 │
+                                                                 ▼
+                                                        ┌──────────────────┐
+                                                        │  WiFi Admin      │
+                                                        └──────────────────┘
+                                                                 │
+                                                         A (any press) or client disconnects
+                                                                 │
+                                                                 ▼
+                                                        ┌──────────────────┐
+                                                        │ Account Selection│
+                                                        └──────────────────┘
+```
+
+### PIN configured but no accounts yet
+```
+Lock Screen ──(PIN entered)──► WiFi Admin   (same as first-boot WiFi Admin step)
+```
+
+> If BLE disconnects at any point, the device returns to the **Start Screen** (except during WiFi Admin, where BLE is intentionally disconnected).
 
 ---
 
@@ -136,11 +163,9 @@ The user must enter their personal 4-digit PIN before credentials can be accesse
 │                        │
 │   Enter PIN:           │
 │                        │
-│    [ 1 ][ 2 ][ 3 ][ 4 ]│  ← active digit has cursor
-│      ▲                 │
+│    [ 1 ][ 2 ][ 3 ][ 4 ]│  ← active digit highlighted in red
 │                        │
-│  [A] cursor  [B] digit+│
-│  [A~500ms] confirm     │
+│  [A]cursor  [B]+  [A~] │
 └────────────────────────┘
 ```
 
@@ -148,9 +173,32 @@ The user must enter their personal 4-digit PIN before credentials can be accesse
 |--------|--------|
 | **A press** | Move cursor right (cycle through 4 digits) |
 | **B press** | Increment selected digit (0 → 9 → 0) |
-| **A medium press** (500 ms) | Confirm PIN → advance to Account Selection |
+| **A medium press** (500 ms) | Confirm PIN → advance to Account Selection (or WiFi Admin if no accounts) |
 
-> The PIN is displayed as live digits on screen. Default PIN for the pre-loaded demo accounts is `1234`.
+---
+
+### 3a. Set PIN Screen *(first boot only)*
+Shown the very first time the device is paired, before any PIN has been configured. The user sets a new 4-digit PIN and must confirm it by entering it a second time.
+
+```
+┌────────────────────────┐       ┌────────────────────────┐
+│ 🔋 87%        ●        │       │ 🔋 87%        ●        │
+│                        │  ok   │                        │
+│  Set new PIN:          │ ────► │  Confirm new PIN:      │
+│                        │       │                        │
+│    [ 0 ][ 0 ][ 0 ][ 0 ]│       │    [ 0 ][ 0 ][ 0 ][ 0 ]│
+│                        │       │                        │
+│  [A]cursor  [B]+  [A~] │       │  [A]cursor  [B]+  [A~] │
+└────────────────────────┘       └────────────────────────┘
+```
+
+| Button | Action |
+|--------|--------|
+| **A press** | Move cursor right |
+| **B press** | Increment selected digit |
+| **A medium press** (500 ms) | Confirm phase / confirm PIN |
+
+If the two entries do not match, a "PIN mismatch" error is shown for 1.5 s and the screen resets to phase 1. On success the PIN-configured flag is saved and the device proceeds to **WiFi Admin** to add accounts.
 
 ---
 
@@ -238,6 +286,7 @@ Starts a Wi-Fi Access Point on the device. Any device that connects is automatic
 |--------|---------|----------|--------|---------|----------|--------|
 | Start | — | — | — | — | — | — |
 | Pin | — | — | — | — | — | — |
+| Set PIN | Cursor → | Confirm phase | — | Digit ++ | — | — |
 | Lock | Cursor → | Confirm PIN | — | Digit ++ | — | — |
 | Accounts | Next | Prev | — | Send | Cycle mode | WiFi Admin |
 | WiFi Admin | Back | Back | Back | — | — | — |
@@ -246,7 +295,7 @@ Starts a Wi-Fi Access Point on the device. Any device that connects is automatic
 
 ## Storage & Encryption
 
-Credentials are stored in the ESP32's EEPROM (flash). Each of the 10 slots holds:
+Credentials are stored in the ESP32's EEPROM (flash). Each slot holds:
 
 | Field | Max length |
 |-------|-----------|
@@ -254,7 +303,26 @@ Credentials are stored in the ESP32's EEPROM (flash). Each of the 10 slots holds
 | Username | 37 chars |
 | Password | 31 chars |
 
-Each slot (96 bytes) is encrypted with **AES-256-CBC** using a key and IV derived from the user's 4-digit PIN. Changing the PIN without re-encrypting the data will make all stored credentials unreadable.
+Each slot (96 bytes) is encrypted with **AES-256-CBC** using a key and IV derived from the user's 4-digit PIN.
+
+### EEPROM layout
+
+```
+[ slot 0 ][ slot 1 ] … [ slot N-1 ][ PIN flag ][ slot count ]
+  96 B       96 B            96 B      1 B           1 B
+```
+
+**`MAX_SLOTS`** is derived automatically from the EEPROM size configured in `setup()`:
+
+```
+MAX_SLOTS = (EEPROM_SIZE - 2) / 96
+```
+
+With the default `EEPROM.begin(4096)` this gives **42 slots**. To add more, increase the value in both `setup()` and `Storage::EEPROM_SIZE` — `MAX_SLOTS` and all address constants update automatically.
+
+The WiFi Admin page always shows all saved slots **plus one empty slot** for adding a new account, up to `MAX_SLOTS`. Saving a non-empty slot at index ≥ current count expands the count automatically.
+
+Changing the PIN without re-encrypting the data will make all stored credentials unreadable.
 
 ---
 

@@ -8,6 +8,7 @@ enum ScreenType { //Because of no rtti
   START,
   PIN,
   LOCK,
+  SET_PIN,
   ACCOUNT_SELECTION,
   WIFI_ADMIN
 };

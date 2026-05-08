@@ -59,6 +59,21 @@ bool Storage::resetPin(uint8_t oldPin[], uint8_t newPin[]) {
 }
 
 
+bool Storage::deleteSlot(byte index) {
+  uint8_t count = getSlotCount();
+  if (index >= count) return false;
+
+  // Shift subsequent encrypted slots down by one (no PIN needed — raw copy)
+  Credentials tmp;
+  for (int i = index; i < count - 1; i++) {
+    EEPROM.get((i + 1) * sizeof(Credentials), tmp);
+    EEPROM.put(i       * sizeof(Credentials), tmp);
+  }
+  EEPROM.write(slotCountAddr(), count - 1);
+  EEPROM.commit();
+  return true;
+}
+
 bool Storage::store(byte index, espwv32::Credentials credentials, uint8_t pin[]) {
   EEPROM.put(index * sizeof(credentials), encrypt(credentials, pin));
   // Expand the slot count when a non-empty slot beyond the current count is saved

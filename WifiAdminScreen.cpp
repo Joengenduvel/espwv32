@@ -137,6 +137,7 @@ class WifiAdminScreen : public GenericScreen {
       _server = new WebServer(80);
       _server->on("/",            HTTP_GET,  [this]() { handleRoot(); });
       _server->on("/save",        HTTP_POST, [this]() { handleSave(); });
+      _server->on("/delete",      HTTP_POST, [this]() { handleDelete(); });
       _server->on("/change-pin",  HTTP_POST, [this]() { handleChangePin(); });
       _server->onNotFound([this]() {
         _server->sendHeader("Location", "http://192.168.4.1/", true);
@@ -198,6 +199,17 @@ class WifiAdminScreen : public GenericScreen {
       _server->send(302, "text/plain", "");
     }
 
+    void handleDelete() {
+      int idx = _server->arg("index").toInt();
+      if (idx < 0 || idx >= Storage::maxSlots()) {
+        _server->send(400, "text/plain", "Invalid index");
+        return;
+      }
+      _storage->deleteSlot(idx);
+      _server->sendHeader("Location", "/", true);
+      _server->send(302, "text/plain", "");
+    }
+
     void handleSave() {
       int idx = _server->arg("index").toInt();
       if (idx < 0 || idx >= Storage::maxSlots()) {
@@ -234,6 +246,9 @@ class WifiAdminScreen : public GenericScreen {
         ".pin-row input{width:48px;text-align:center;padding:6px;border:1px solid #ccc;border-radius:3px;font-size:1.2em}"
         "button{margin-top:8px;background:#0069d9;color:#fff;border:none;padding:7px 18px;border-radius:3px;cursor:pointer}"
         "button:hover{background:#0053aa}"
+        "button.del{background:#c00;margin-left:6px}"
+        "button.del:hover{background:#900}"
+        ".btn-row{display:flex;align-items:center}"
         ".ok{color:#1a7f1a;font-weight:bold;margin-bottom:8px}"
         ".err{color:#c00;font-weight:bold;margin-bottom:8px}"
         "</style></head><body>"
@@ -287,8 +302,18 @@ class WifiAdminScreen : public GenericScreen {
                 "<input type='text' name='username' value='" + esc(c.username) + "'>"
                 "<label>Password</label>"
                 "<input type='password' name='password' value='" + esc(c.password) + "'>"
-                "<button type='submit'>Save</button>"
-                "</form></div>";
+                "<div class='btn-row'>"
+                "<button type='submit'>Save</button>";
+        // Only saved slots can be deleted (not the blank new-entry slot)
+        if (i < slotCount) {
+          html += "<form method='POST' action='/delete' style='margin-top:8px'>"
+                  "<input type='hidden' name='index' value='" + String(i) + "'>"
+                  "<button class='del' type='submit' "
+                  "onclick=\"return confirm('Delete slot " + String(i) + "?')\""
+                  ">Delete</button>"
+                  "</form>";
+        }
+        html += "</div></form></div>";
       }
 
       html += "</body></html>";

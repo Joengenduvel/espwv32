@@ -55,6 +55,10 @@ class Storage {
     bool verifyPin(uint8_t pin[]);
     bool resetPin(uint8_t oldPin[], uint8_t newPin[]);
 
+    // Deletes slot at index, shifts subsequent slots down, decrements count.
+    // Works on raw encrypted bytes — no PIN needed.
+    bool deleteSlot(byte index);
+
     uint8_t getSlotCount() {
       uint8_t n = EEPROM.read(slotCountAddr());
       return (n > (uint8_t)maxSlots()) ? 0 : n;

@@ -214,20 +214,18 @@ Browse and send stored credentials.
 │  2 / 10                │  ← slot index
 │  ──────────────────    │
 │  Account 2             │  ← account name
-│  User 2                │  ← username
-│  ••••••••              │  ← password (masked)
 │                        │
 │[A]next [B]send         │
 └────────────────────────┘
 ```
 
-| Button | Action |
-|--------|--------|
-| **A press** | Next account |
+| Button                      | Action |
+|-----------------------------|--------|
+| **A press**                 | Next account |
 | **A medium press** (500 ms) | Previous account |
-| **B press** | Send credentials via BLE (types as keyboard) |
+| **A long press** (1000 ms)  | Open **WiFi Admin Screen** |
+| **B press**                 | Send credentials via BLE (types as keyboard) |
 | **B medium press** (500 ms) | Cycle send mode: `U→P` (username + TAB + password) → `U` (username only) → `P` (password only) |
-| **B long press** (1000 ms) | Open **WiFi Admin Screen** |
 
 The active send mode is highlighted in the top-right corner of the screen.
 

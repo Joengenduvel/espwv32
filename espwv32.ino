@@ -43,8 +43,9 @@ class MyKeyboardCallbacks: public ble::BLEKeyboardCallbacks {
 
     void disconnected() {
       Serial.println("disconnected");
-      // Ignore BLE disconnect while in WiFi admin — we disconnect BLE
-      // deliberately when the AP starts; we do NOT want to leave admin mode
+      // Ignore BLE disconnect while in WiFi admin — BLE advertising is
+      // stopped but an existing connection is kept alive; if it drops
+      // naturally we stay in admin mode rather than jumping to Start Screen
       if (_currentScreen->getType() == espwv32::ScreenType::WIFI_ADMIN) return;
       _currentScreen = _startScreen;
       _currentScreen->reset();
@@ -79,12 +80,16 @@ void setup() {
   esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
 
   _keyboard = new ble::BLEKeyboard("ESPWV32");
+  // Device starts in BLE-only mode — give BLE full radio priority.
+  // WifiAdmin switches this to PREFER_WIFI when the AP starts and
+  // restores it to PREFER_BT when the AP stops.
+  esp_coex_preference_set(ESP_COEX_PREFER_BT);
 
   _startScreen            = new espwv32::StartScreen("");
   _pinScreen              = new espwv32::PinScreen();
   _lockScreen             = new espwv32::LockScreen();
   _accountSelectionScreen = new espwv32::AccountSelectionScreen(_keyboard);
-  _wifiAdminScreen        = new espwv32::WifiAdminScreen(_keyboard);
+  _wifiAdminScreen        = new espwv32::WifiAdminScreen();
 
   _startScreen->reset();
   _currentScreen = _startScreen;

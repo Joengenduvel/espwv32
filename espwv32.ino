@@ -147,11 +147,7 @@ void loop() {
   }
 
 
-  if (M5.BtnA.wasReleasefor(2000)) {
-    //keyboard->disconnect();
-    //M5.Axp.DeepSleep(SLEEP_SEC(10));
-    Serial.println("Going to sleep");
-  } else if (M5.BtnA.wasReleasefor(1000)) {
+  if (M5.BtnA.wasReleasefor(1000)) {
     Serial.println("A long pressed");
     _currentScreen->buttonLongPressedA();
   } else if (M5.BtnA.wasReleasefor(500)) {

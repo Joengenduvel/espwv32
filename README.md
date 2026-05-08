@@ -28,20 +28,20 @@ A password vault you can take with you. Credentials are stored encrypted on the 
 
 ```
                     ◉ LED   IR 》
-  [PWR]           ┌──────────────┐
-  (left side) ────┤ ┌──────────┐ ├─── [A] (right side, large)
-  hold 6s=OFF     │ │          │ │
+                  ┌──────────────┐
+                  │ ┌──────────┐ ├─── [B] (right side, large)
+                  │ │          │ │
                   │ │  Screen  │ │
                   │ │  80×160  │ │
-                  │ │          │ │
-                  │ └──────────┘ │
-                  │ [B]          │    ← front face, bottom-left
+  [PWR]           │ │          │ │
+  (left side) ────┤ └──────────┘ │
+  hold 6s=OFF     │ [A]          │    ← front face, bottom-left
                   └──┬───────────┘
                   Grove  USB-C CHG
 ```
 
-* **Button A** — right-side button (larger); mapped to navigation / confirm
-* **Button B** — front face, bottom-left corner; mapped to value change / send
+* **Button B** — right-side button; mapped to value change / send
+* **Button A** — front face (larger); mapped to navigation / confirm
 * **PWR switch** — left side; hold 6 seconds to power off
 
 ---
@@ -71,7 +71,7 @@ A password vault you can take with you. Credentials are stored encrypted on the 
 
 ### Normal use (PIN configured, accounts exist)
 ```
-┌─────────────┐  BLE pair   ┌────────────┐  BLE auth OK  ┌────────────┐
+┌─────────────┐  BLE pair   ┌────────────┐   BLE auth OK  ┌────────────┐
 │ Start Screen│ ──────────► │ Pin Screen │ ─────────────► │ Lock Screen│
 └─────────────┘             └────────────┘                └────────────┘
                                                                  │
@@ -82,7 +82,7 @@ A password vault you can take with you. Credentials are stored encrypted on the 
                                                         │ Account Selection│
                                                         └──────────────────┘
                                                                  │
-                                                          B long press
+                                                          A long press
                                                                  │
                                                                  ▼
                                                         ┌──────────────────┐

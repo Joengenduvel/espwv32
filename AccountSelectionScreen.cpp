@@ -75,7 +75,7 @@ class AccountSelectionScreen: public GenericScreen {
       }
       showDataToSendControls();
     }
-    virtual void buttonLongPressedB() {
+    virtual void buttonLongPressedA() {
       Serial.println("Opening WiFi Admin");
       _toNextScreen = true;
     }

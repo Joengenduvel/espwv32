@@ -1,5 +1,8 @@
 #include <M5StickC.h>
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcpp"
 #include "ble.h"
+#pragma GCC diagnostic pop
 #include "GenericScreen.h"
 #include "StartScreen.cpp"
 #include "PinScreen.cpp"

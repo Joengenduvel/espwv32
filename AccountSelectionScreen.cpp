@@ -7,9 +7,9 @@ namespace espwv32 {
 
 class AccountSelectionScreen: public GenericScreen {
   public:
-    AccountSelectionScreen(ble::BLEKeyboard* keyboard) {
-      _storage = new Storage();
-      _keyboard = keyboard;
+    AccountSelectionScreen() {
+      _storage  = new Storage();
+      _keyboard = new ble::BLEKeyboard("ESPWV32");
       memset(_userPin, 0, 4);
     }
     void updatePin(uint8_t *userPin) {
@@ -19,7 +19,10 @@ class AccountSelectionScreen: public GenericScreen {
     }
     ~AccountSelectionScreen() {
       delete _storage;
+      delete _keyboard;
     }
+
+    void setCallbacks(ble::BLEKeyboardCallbacks* cb) { _keyboard->setCallbacks(cb); }
 
     void reset() {
       _accountIndex = 0;

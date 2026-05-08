@@ -20,8 +20,6 @@ espwv32::GenericScreen* _accountSelectionScreen;
 espwv32::GenericScreen* _wifiAdminScreen;
 
 
-ble::BLEKeyboard* _keyboard;
-
 
 class MyKeyboardCallbacks: public ble::BLEKeyboardCallbacks {
     void authenticationInfo(uint32_t pin) {
@@ -79,23 +77,19 @@ void setup() {
   // Must be called BEFORE BLEDevice::init() (inside BLEKeyboard ctor).
   esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
 
-  _keyboard = new ble::BLEKeyboard("ESPWV32");
-  // Device starts in BLE-only mode — give BLE full radio priority.
-  // WifiAdmin switches this to PREFER_WIFI when the AP starts and
-  // restores it to PREFER_BT when the AP stops.
-  esp_coex_preference_set(ESP_COEX_PREFER_BT);
-
   _startScreen            = new espwv32::StartScreen("");
   _pinScreen              = new espwv32::PinScreen();
   _lockScreen             = new espwv32::LockScreen();
-  _accountSelectionScreen = new espwv32::AccountSelectionScreen(_keyboard);
+  _accountSelectionScreen = new espwv32::AccountSelectionScreen(); // owns the BLEKeyboard
   _wifiAdminScreen        = new espwv32::WifiAdminScreen();
+
+  // BLE-only mode at boot — give BLE full radio priority
+  esp_coex_preference_set(ESP_COEX_PREFER_BT);
 
   _startScreen->reset();
   _currentScreen = _startScreen;
 
-  _keyboard->setCallbacks(new MyKeyboardCallbacks());
-}
+  ((espwv32::AccountSelectionScreen*)_accountSelectionScreen)->setCallbacks(new MyKeyboardCallbacks());}
 
 void loop() {
   M5.update();
@@ -147,60 +141,36 @@ void loop() {
   static unsigned long lastStatusUpdate = 0;
   if (millis() - lastStatusUpdate >= 1000) {
     lastStatusUpdate = millis();
-    bool inWifiAdmin = _currentScreen->getType() == espwv32::ScreenType::WIFI_ADMIN;
-    _currentScreen->updateBatteryPercentage(espwv32::System::getBatteryPercentage(), espwv32::System::isCharging());
-    // Skip BLE radio operations while WiFi admin is active — they compete
-    // for the radio and can drop DHCP packets
-    if (!inWifiAdmin) {
-      _keyboard->setBatteryLevel(espwv32::System::getBatteryPercentage());
-    }
-    _currentScreen->updateConnected(_keyboard->isConnected());
+    _currentScreen->updateBatteryPercentage(
+      espwv32::System::getBatteryPercentage(),
+      espwv32::System::isCharging());
   }
-
 
 
   if (M5.BtnA.wasReleasefor(2000)) {
     //keyboard->disconnect();
     //M5.Axp.DeepSleep(SLEEP_SEC(10));
     Serial.println("Going to sleep");
-  } else {
-    if (M5.BtnA.wasReleasefor(1000)) {
-      Serial.println("A long pressed");
-      _currentScreen->buttonLongPressedA();
-    } else {
-
-      if (M5.BtnA.wasReleasefor(500)) {
-        Serial.println("A medium pressed");
-        _currentScreen->buttonMediumPressedA();
-      } else {
-
-        if (M5.BtnA.wasReleasefor(1)) {
-          Serial.println("A pressed");
-          _currentScreen->buttonPressedA();
-        }
-      }
-    }
+  } else if (M5.BtnA.wasReleasefor(1000)) {
+    Serial.println("A long pressed");
+    _currentScreen->buttonLongPressedA();
+  } else if (M5.BtnA.wasReleasefor(500)) {
+    Serial.println("A medium pressed");
+    _currentScreen->buttonMediumPressedA();
+  } else if (M5.BtnA.wasReleasefor(1)) {
+    Serial.println("A pressed");
+    _currentScreen->buttonPressedA();
   }
 
 
   if (M5.BtnB.wasReleasefor(1000)) {
     Serial.println("B long pressed");
     _currentScreen->buttonLongPressedB();
-  } else {
-
-    if (M5.BtnB.wasReleasefor(500)) {
-      Serial.println("B medium pressed");
-      _currentScreen->buttonMediumPressedB();
-    } else {
-
-      if (M5.BtnB.wasReleasefor(1)) {
-        Serial.println("B pressed");
-        _currentScreen->buttonPressedB();
-      }
-    }
+  } else if (M5.BtnB.wasReleasefor(500)) {
+    Serial.println("B medium pressed");
+    _currentScreen->buttonMediumPressedB();
+  } else if (M5.BtnB.wasReleasefor(1)) {
+    Serial.println("B pressed");
+    _currentScreen->buttonPressedB();
   }
-
-
-
-
 }

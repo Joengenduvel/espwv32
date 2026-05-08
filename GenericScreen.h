@@ -59,21 +59,6 @@ class GenericScreen {
       M5.Lcd.print("%");
     }
 
-    void updateConnected(bool connected = false) {
-      uint8_t posX = 152;
-      uint8_t posY = 15;
-
-      M5.Lcd.setRotation(3);
-      //lightning logo
-      if (connected) {
-        M5.Lcd.fillEllipse(posX, posY, 3, 3, BLUE);
-      } else {
-        M5.Lcd.fillEllipse(posX, posY, 3, 3, BLACK);
-      }
-
-      M5.Lcd.drawEllipse(posX, posY, 3, 3, BLUE);
-
-    }
   private:
     bool _needToRefresh = false;
   protected:

@@ -121,6 +121,7 @@ void loop() {
         break;
       case espwv32::ScreenType::LOCK:
         {
+
           uint8_t* userPin = ((espwv32::LockScreen*)_lockScreen)->getCode();
           ((espwv32::AccountSelectionScreen*)_accountSelectionScreen)->updatePin(userPin);
           _currentScreen = _accountSelectionScreen;

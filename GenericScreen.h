@@ -59,6 +59,15 @@ class GenericScreen {
       M5.Lcd.print("%");
     }
 
+    void showSplash(const char* text, uint16_t color = DARKGREY, uint8_t textSize = 2) {
+      M5.Lcd.fillScreen(BLACK);
+      M5.Lcd.setRotation(3);
+      M5.Lcd.setTextSize(textSize);
+      M5.Lcd.setTextColor(color);
+      M5.Lcd.setCursor(8, 26);
+      M5.Lcd.print(text);
+    }
+
   private:
     bool _needToRefresh = false;
   protected:

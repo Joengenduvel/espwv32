@@ -41,6 +41,7 @@ class LockScreen : public GenericScreen {
 
     void buttonMediumPressedA() override {
       if (_mode == ENTER) {
+        showSplash("Verifying...");
         Storage storage;
         if (!storage.verifyPin(_pin)) {
           showError();
@@ -48,6 +49,8 @@ class LockScreen : public GenericScreen {
           reset();
           show();
         } else {
+          // Keep transition visuals in this screen class before the router switches screens.
+          showSplash("Decrypting...");
           _toNextScreen = true;
         }
       } else {
@@ -70,6 +73,10 @@ class LockScreen : public GenericScreen {
           }
         }
       }
+    }
+
+    void buttonLongPressedA() override {
+      buttonMediumPressedA();
     }
 
   private:
@@ -116,5 +123,6 @@ class LockScreen : public GenericScreen {
       M5.Lcd.setCursor(0, 42);
       M5.Lcd.print("Try again...");
     }
+
 };
 }

@@ -45,14 +45,25 @@ class WifiAdmin {
     String            _wifiPass;
     bool              _done        = false;
     bool              _passChanged = false;
+    bool              _eventsRegistered = false;
+    unsigned long     _lastHttpActivityMs = 0;
 
     static String generatePass();
+    void markHttpActivity();
     void handleRoot();
-    void handleSave();
-    void handleDelete();
+    void handleAccountsPage();
+    void handleSettingsPage();
+    void handleUpsertAccount();
+    void handleDeleteAccountByPath();
     void handleChangePin();
+    void handleBattery();
     void handleResetWifiPass();
-    String buildPage(String status = "");
+    int parseAccountIndexFromPath(const String& uri) const;
+    void sendHtmlPage(const String& html);
+    String buildHead(const char* activeTab);
+    String buildFooter();
+    String buildAccountsPage(String status = "", int selectedSlot = -1);
+    String buildSettingsPage(String status = "");
     static String esc(const char* s);
 };
 

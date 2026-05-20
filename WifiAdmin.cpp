@@ -62,7 +62,26 @@ void WifiAdmin::start() {
   _dns->start(DNS_PORT, "*", WiFi.softAPIP());
 
   _server = new WebServer(80);
-  _server->on("/favicon.ico",       HTTP_GET,  [this]() { _server->send(204, "text/plain", ""); });
+  _server->on("/favicon.ico", HTTP_GET, [this]() {
+    const char* svg =
+      "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>"
+      "<rect width='64' height='64' rx='12' fill='#0d1117'/>"
+      "<rect x='16' y='28' width='32' height='24' rx='4' fill='#1f6feb'/>"
+      "<path d='M22 28v-5a10 10 0 0 1 20 0v5' fill='none' stroke='#ffffff' stroke-width='4' stroke-linecap='round'/>"
+      "<circle cx='32' cy='40' r='4' fill='#ffffff'/>"
+      "</svg>";
+    _server->send(200, "image/svg+xml", svg);
+  });
+  _server->on("/favicon.svg", HTTP_GET, [this]() {
+    const char* svg =
+      "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>"
+      "<rect width='64' height='64' rx='12' fill='#0d1117'/>"
+      "<rect x='16' y='28' width='32' height='24' rx='4' fill='#1f6feb'/>"
+      "<path d='M22 28v-5a10 10 0 0 1 20 0v5' fill='none' stroke='#ffffff' stroke-width='4' stroke-linecap='round'/>"
+      "<circle cx='32' cy='40' r='4' fill='#ffffff'/>"
+      "</svg>";
+    _server->send(200, "image/svg+xml", svg);
+  });
   _server->on("/generate_204",      HTTP_GET,  [this]() { _server->send(204, "text/plain", ""); });
   _server->on("/connecttest.txt",   HTTP_GET,  [this]() { _server->sendHeader("Location", "/settings", true); _server->send(302, "text/plain", ""); });
   _server->on("/ncsi.txt",          HTTP_GET,  [this]() { _server->sendHeader("Location", "/settings", true); _server->send(302, "text/plain", ""); });
@@ -173,17 +192,32 @@ void WifiAdmin::sendHtmlPage(const String& html) {
   const uint8_t* data = (const uint8_t*)html.c_str();
   size_t offset = 0;
   while (offset < len) {
-    size_t chunk = min((size_t)512, len - offset);
-    size_t written = client.write(data + offset, chunk);
-
-    if (written == 0) {
-      Serial.printf("[WA] ERROR: short write at %u/%u bytes (connected=%d)\n",
-                    (unsigned)offset, (unsigned)len, client.connected() ? 1 : 0);
+    if (!client.connected()) {
+      Serial.printf("[WA] ERROR: client disconnected at %u/%u bytes\n",
+                    (unsigned)offset, (unsigned)len);
       return;
     }
 
+    size_t chunk = min((size_t)256, len - offset);
+    size_t written = client.write(data + offset, chunk);
+
+    if (written == 0) {
+      // TCP send buffer is full — wait for it to drain and retry
+      int retries = 0;
+      while (written == 0 && retries < 20 && client.connected()) {
+        delay(10);
+        written = client.write(data + offset, chunk);
+        retries++;
+      }
+      if (written == 0) {
+        Serial.printf("[WA] ERROR: short write at %u/%u bytes (connected=%d)\n",
+                      (unsigned)offset, (unsigned)len, client.connected() ? 1 : 0);
+        return;
+      }
+    }
+
     offset += written;
-    delay(0);
+    yield();
   }
 
   client.flush();
@@ -338,6 +372,8 @@ String WifiAdmin::buildHead(const char* activeTab) {
     "<!DOCTYPE html><html><head>"
     "<meta charset='UTF-8'>"
     "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+    "<link rel='icon' href='/favicon.svg' type='image/svg+xml'>"
+    "<link rel='alternate icon' href='/favicon.ico'>"
     "<title>ESPWV32 Admin</title>"
     "<style>"
     "body{font-family:sans-serif;max-width:560px;margin:24px auto;padding:0 12px;background:#f4f4f4}"
@@ -412,6 +448,8 @@ String WifiAdmin::buildAccountsPage(String status, int selectedSlot) {
     "<!DOCTYPE html><html><head>"
     "<meta charset='UTF-8'>"
     "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+    "<link rel='icon' href='/favicon.svg' type='image/svg+xml'>"
+    "<link rel='alternate icon' href='/favicon.ico'>"
     "<title>ESPWV32 Accounts</title>"
     "<style>"
     "body{font-family:sans-serif;max-width:560px;margin:24px auto;padding:0 12px;background:#f4f4f4}"

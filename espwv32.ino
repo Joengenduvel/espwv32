@@ -179,12 +179,8 @@ void loop() {
     Serial.println("A medium pressed");
     _currentScreen->buttonMediumPressedA();
   } else if (M5.BtnA.wasReleasefor(1)) {
-    static unsigned long lastBtnAPress = 0;
-    if (millis() - lastBtnAPress > 200) {
-      lastBtnAPress = millis();
-      Serial.println("A pressed");
-      _currentScreen->buttonPressedA();
-    }
+    Serial.println("A pressed");
+    _currentScreen->buttonPressedA();
   }
 
   if (M5.BtnB.wasReleasefor(1000)) {
@@ -194,11 +190,8 @@ void loop() {
     Serial.println("B medium pressed");
     _currentScreen->buttonMediumPressedB();
   } else if (M5.BtnB.wasReleasefor(1)) {
-    static unsigned long lastBtnBPress = 0;
-    if (millis() - lastBtnBPress > 1500) {
-      lastBtnBPress = millis();
-      Serial.println("B pressed");
-      _currentScreen->buttonPressedB();
+    Serial.println("B pressed");
+    _currentScreen->buttonPressedB();
     }
   }
 

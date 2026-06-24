@@ -44,6 +44,9 @@ class AccountSelectionScreen: public GenericScreen {
       show();
     }
     virtual void buttonPressedB() {
+      unsigned long now = millis();
+      if (now - _lastSendMs < 1500) return;
+      _lastSendMs = now;
       M5.Lcd.fillScreen(WHITE);
       Serial.println("sending");
       switch (_dataToSend) {
@@ -162,5 +165,6 @@ class AccountSelectionScreen: public GenericScreen {
     DataToSend _dataToSend = USERNAME_PASSWORD;
     Credentials _currentAccount;
     ble::BLEKeyboard* _keyboard;
+    unsigned long _lastSendMs = 0;
 };
 }

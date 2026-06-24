@@ -4,6 +4,24 @@
 using namespace espwv32;
 
 int Storage::_eepromSize = 4096;
+uint8_t Storage::_slotCountCache = 0;
+bool Storage::_slotCountCacheLoaded = false;
+
+Storage::Storage() {
+  initSlotCountCache();
+}
+
+void Storage::initSlotCountCache() {
+  if (_slotCountCacheLoaded) return;
+  uint8_t n = EEPROM.read(slotCountAddr());
+  _slotCountCache = (n == 0xFF || n > (uint8_t)maxSlots()) ? 0 : n;
+  _slotCountCacheLoaded = true;
+}
+
+uint8_t Storage::getSlotCount() {
+  initSlotCountCache();
+  return _slotCountCache;
+}
 
 // ── PBKDF2-HMAC-SHA256 helper ─────────────────────────────────────────────────
 
@@ -69,7 +87,8 @@ bool Storage::deleteSlot(byte index) {
     EEPROM.get((i + 1) * sizeof(Credentials), tmp);
     EEPROM.put(i       * sizeof(Credentials), tmp);
   }
-  EEPROM.write(slotCountAddr(), count - 1);
+  _slotCountCache = count - 1;
+  EEPROM.write(slotCountAddr(), _slotCountCache);
   EEPROM.commit();
   return true;
 }
@@ -77,9 +96,11 @@ bool Storage::deleteSlot(byte index) {
 bool Storage::store(byte index, espwv32::Credentials credentials, uint8_t pin[]) {
   EEPROM.put(index * sizeof(credentials), encrypt(credentials, pin));
   // Expand the slot count when a non-empty slot beyond the current count is saved
-  if (strlen(credentials.name) > 0 && index >= getSlotCount()) {
+  uint8_t count = getSlotCount();
+  if (strlen(credentials.name) > 0 && index >= count) {
     uint8_t newCount = (uint8_t)min((int)index + 1, maxSlots());
-    EEPROM.write(slotCountAddr(), newCount);
+    _slotCountCache = newCount;
+    EEPROM.write(slotCountAddr(), _slotCountCache);
   }
   return true;
 }

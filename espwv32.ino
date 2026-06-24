@@ -9,6 +9,7 @@
 #include "LockScreen.cpp"
 #include "AccountSelectionScreen.cpp"
 #include "WifiAdminScreen.cpp"
+#include "SerialAdminScreen.cpp"
 #include "Storage.h"
 #include "System.cpp"
 #include "esp_bt.h"
@@ -21,6 +22,7 @@ espwv32::GenericScreen* _pinScreen;
 espwv32::GenericScreen* _lockScreen;
 espwv32::GenericScreen* _accountSelectionScreen;
 espwv32::GenericScreen* _wifiAdminScreen;
+espwv32::GenericScreen* _serialAdminScreen;
 
 void setScreen(uint8_t brightness) {
   M5.Axp.ScreenBreath(brightness);
@@ -51,7 +53,8 @@ class MyKeyboardCallbacks: public ble::BLEKeyboardCallbacks {
       // Ignore BLE disconnect while in WiFi admin — BLE advertising is
       // stopped but an existing connection is kept alive; if it drops
       // naturally we stay in admin mode rather than jumping to Start Screen.
-      if (_currentScreen->getType() == espwv32::ScreenType::WIFI_ADMIN) return;
+      if (_currentScreen->getType() == espwv32::ScreenType::WIFI_ADMIN ||
+          _currentScreen->getType() == espwv32::ScreenType::SERIAL_ADMIN) return;
       _currentScreen = _startScreen;
       _currentScreen->reset();
     }
@@ -92,6 +95,7 @@ void setup() {
   _lockScreen             = new espwv32::LockScreen();
   _accountSelectionScreen = new espwv32::AccountSelectionScreen(); // owns the BLEKeyboard
   _wifiAdminScreen        = new espwv32::WifiAdminScreen();
+  _serialAdminScreen      = new espwv32::SerialAdminScreen();
 
   // BLE-only mode at boot — give BLE full radio priority.
   esp_coex_preference_set(ESP_COEX_PREFER_BT);
@@ -137,6 +141,18 @@ void loop() {
       case espwv32::ScreenType::WIFI_ADMIN:
         {
           uint8_t* pin = ((espwv32::WifiAdminScreen*)_wifiAdminScreen)->getPin();
+          if (((espwv32::WifiAdminScreen*)_wifiAdminScreen)->consumeSerialAdminRequest()) {
+            ((espwv32::SerialAdminScreen*)_serialAdminScreen)->updatePin(pin);
+            _currentScreen = _serialAdminScreen;
+          } else {
+            ((espwv32::AccountSelectionScreen*)_accountSelectionScreen)->updatePin(pin);
+            _currentScreen = _accountSelectionScreen;
+          }
+        }
+        break;
+      case espwv32::ScreenType::SERIAL_ADMIN:
+        {
+          uint8_t* pin = ((espwv32::SerialAdminScreen*)_serialAdminScreen)->getPin();
           ((espwv32::AccountSelectionScreen*)_accountSelectionScreen)->updatePin(pin);
           _currentScreen = _accountSelectionScreen;
         }
@@ -178,26 +194,37 @@ void loop() {
     _currentScreen->buttonPressedB();
   }
 
-  // ── Screen dimming ────────────────────────────────────────────────────────
-  static unsigned long lastActivity = millis();
-  static uint8_t currentBrightness = 15;
+   // ── Screen dimming ────────────────────────────────────────────────────────
+   static unsigned long lastActivity = millis();
+   static uint8_t currentBrightness = 15;
 
-  bool anyButton =
-    M5.BtnA.wasReleasefor(1) || M5.BtnA.isPressed() ||
-    M5.BtnB.wasReleasefor(1) || M5.BtnB.isPressed();
+   // Disable dimming in admin modes
+   bool isAdminMode =
+     _currentScreen->getType() == espwv32::ScreenType::WIFI_ADMIN ||
+     _currentScreen->getType() == espwv32::ScreenType::SERIAL_ADMIN;
 
-  if (anyButton) {
-    lastActivity = millis();
-    if (currentBrightness != 15) {
-      currentBrightness = 15;
-      setScreen(15);
-    }
-  } else {
-    unsigned long idle = millis() - lastActivity;
-    uint8_t targetBrightness = (idle > 30000) ? 7 : (idle > 15000) ? 9 : 15;
-    if (targetBrightness != currentBrightness) {
-      currentBrightness = targetBrightness;
-      setScreen(currentBrightness);
-    }
-  }
+   bool anyButton =
+     M5.BtnA.wasReleasefor(1) || M5.BtnA.isPressed() ||
+     M5.BtnB.wasReleasefor(1) || M5.BtnB.isPressed();
+
+   if (anyButton) {
+     lastActivity = millis();
+     if (currentBrightness != 15) {
+       currentBrightness = 15;
+       setScreen(15);
+     }
+   } else if (!isAdminMode) {
+     unsigned long idle = millis() - lastActivity;
+     uint8_t targetBrightness = (idle > 30000) ? 7 : (idle > 15000) ? 9 : 15;
+     if (targetBrightness != currentBrightness) {
+       currentBrightness = targetBrightness;
+       setScreen(currentBrightness);
+     }
+   } else {
+     // Keep screen at full brightness in admin mode
+     if (currentBrightness != 15) {
+       currentBrightness = 15;
+       setScreen(15);
+     }
+   }
 }

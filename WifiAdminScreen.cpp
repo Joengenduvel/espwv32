@@ -14,27 +14,35 @@ class WifiAdminScreen : public GenericScreen {
 
     void updatePin(uint8_t* pin) {
       _admin->updatePin(pin);
+      _openSerialAdmin = false;
       reset();
     }
 
     uint8_t* getPin() { return _admin->getPin(); }
+    bool consumeSerialAdminRequest() {
+      bool requested = _openSerialAdmin;
+      _openSerialAdmin = false;
+      return requested;
+    }
 
     ScreenType getType() { return WIFI_ADMIN; }
 
     void handle() override {
       _admin->handle();
       if (_admin->passChanged()) drawScreen();
-      if (_admin->isDone())      _exitToAccounts();
+      if (_admin->isDone())      _exitToAccounts(false);
     }
 
-    void buttonPressedA()       override { _exitToAccounts(); }
-    void buttonMediumPressedA() override { _exitToAccounts(); }
-    void buttonLongPressedA()   override { _exitToAccounts(); }
+    void buttonPressedA()       override { _exitToAccounts(false); }
+    void buttonMediumPressedA() override { _exitToAccounts(false); }
+    void buttonLongPressedA()   override { _exitToAccounts(true); }
 
   private:
     WifiAdmin* _admin = nullptr;
+    bool _openSerialAdmin = false;
 
-    void _exitToAccounts() {
+    void _exitToAccounts(bool toSerialAdmin) {
+      _openSerialAdmin = toSerialAdmin;
       _admin->stop();
       _admin->clearDone();
       _toNextScreen = true;
@@ -82,7 +90,7 @@ class WifiAdminScreen : public GenericScreen {
       M5.Lcd.setTextSize(1);
       M5.Lcd.setTextColor(DARKGREY);
       M5.Lcd.setCursor(0, 68);
-      M5.Lcd.print("[A] Back");
+      M5.Lcd.print("[A] Back  [A~~] Serial");
     }
 };
 }

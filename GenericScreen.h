@@ -10,7 +10,8 @@ enum ScreenType { //Because of no rtti
   LOCK,
   SET_PIN,
   ACCOUNT_SELECTION,
-  WIFI_ADMIN
+  WIFI_ADMIN,
+  SERIAL_ADMIN
 };
 class GenericScreen {
   public:

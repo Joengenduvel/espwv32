@@ -33,14 +33,14 @@ class Storage {
     static const int     PBKDF2_ITER    = 10000;
     static const int     METADATA_SIZE  = 1 + SALT_SIZE + HASH_SIZE + WIFI_PASS_SIZE; // 81 bytes
 
-    static void setSize(int bytes)  { _eepromSize = bytes; }
+    static void setSize(int bytes)  { _eepromSize = bytes; _slotCountCacheLoaded = false; }
     static int  maxSlots()          { return (_eepromSize - METADATA_SIZE) / (int)sizeof(Credentials); }
     static int  slotCountAddr()     { return maxSlots() * (int)sizeof(Credentials); }
     static int  pinSaltAddr()       { return slotCountAddr() + 1; }
     static int  pinHashAddr()       { return pinSaltAddr() + SALT_SIZE; }
     static int  wifiPassAddr()      { return pinHashAddr() + HASH_SIZE; }
 
-    Storage()  {}
+    Storage();
     ~Storage() {}
 
     bool        store(byte index, Credentials creds, uint8_t pin[]);
@@ -77,13 +77,13 @@ class Storage {
       EEPROM.commit();
     }
 
-    uint8_t getSlotCount() {
-      uint8_t n = EEPROM.read(slotCountAddr());
-      return (n > (uint8_t)maxSlots()) ? 0 : n;
-    }
+    uint8_t getSlotCount();
 
   private:
     static int _eepromSize;
+    static uint8_t _slotCountCache;
+    static bool _slotCountCacheLoaded;
+    static void initSlotCountCache();
     bool writeVerifier(uint8_t pin[]);    // returns false if PBKDF2 fails
     bool pbkdf2(uint8_t pin[], uint8_t salt[], uint8_t out[]); // false on error
     Credentials encrypt(Credentials credentials, uint8_t pin[]);

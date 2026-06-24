@@ -60,6 +60,10 @@ class WifiAdmin {
     void handleResetWifiPass();
     int parseAccountIndexFromPath(const String& uri) const;
     void sendHtmlPage(const String& html);
+    void sendTextPage(const char* contentType, const char* body, const char* extraHeaders = nullptr);
+    void sendTextPage(const char* contentType, const String& body, const char* extraHeaders = nullptr);
+    static const char* buildBaseCSS();
+    static const char* buildAdminJS();
     String buildHead(const char* activeTab);
     String buildFooter();
     String buildAccountsPage(String status = "", int selectedSlot = -1);
@@ -69,4 +73,3 @@ class WifiAdmin {
 
 } // namespace espwv32
 #endif /* MY_CLASS_WifiAdmin */
-

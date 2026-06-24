@@ -82,13 +82,33 @@ void WifiAdmin::start() {
       "</svg>";
     _server->send(200, "image/svg+xml", svg);
   });
-  _server->on("/generate_204",      HTTP_GET,  [this]() { _server->send(204, "text/plain", ""); });
-  _server->on("/connecttest.txt",   HTTP_GET,  [this]() { _server->sendHeader("Location", "/settings", true); _server->send(302, "text/plain", ""); });
-  _server->on("/ncsi.txt",          HTTP_GET,  [this]() { _server->sendHeader("Location", "/settings", true); _server->send(302, "text/plain", ""); });
-  // Apple captive portal probes should land in the admin UI, not a static success page.
-  _server->on("/hotspot-detect.html", HTTP_GET, [this]() { _server->sendHeader("Location", "/settings", true); _server->send(302, "text/plain", ""); });
-  _server->on("/library/test/success.html", HTTP_GET, [this]() { _server->sendHeader("Location", "/settings", true); _server->send(302, "text/plain", ""); });
-  _server->on("/success.txt", HTTP_GET, [this]() { _server->sendHeader("Location", "/settings", true); _server->send(302, "text/plain", ""); });
+  // Captive portal probes
+  _server->on("/portal", HTTP_GET, [this]() {
+    // Tiny page for captive mini-browsers; avoids loading larger assets first.
+    sendTextPage("text/html; charset=utf-8",
+      "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
+      "<title>ESPWV32 Admin</title></head><body style='font-family:sans-serif;padding:16px'>"
+      "<h2>ESPWV32 Admin</h2><p>Connected. Open the admin page:</p>"
+      "<p><a href='/settings'>Go to settings</a></p></body></html>");
+  });
+  _server->on("/generate_204",             HTTP_GET, [this]() { _server->send(204, "text/plain", ""); });
+  // Windows NCSI probes: return redirect/non-expected response to trigger captive flow.
+  _server->on("/connecttest.txt",          HTTP_GET, [this]() { _server->sendHeader("Location", "http://192.168.4.1/portal", true); _server->send(302, "text/plain", ""); });
+  _server->on("/ncsi.txt",                 HTTP_GET, [this]() { _server->send(200, "text/plain", "ESPWV32 captive portal"); });
+  _server->on("/redirect",                 HTTP_GET, [this]() { _server->sendHeader("Location", "http://192.168.4.1/portal", true); _server->send(302, "text/plain", ""); });
+  _server->on("/fwlink",                   HTTP_GET, [this]() { _server->sendHeader("Location", "http://192.168.4.1/portal", true); _server->send(302, "text/plain", ""); });
+  _server->on("/hotspot-detect.html",      HTTP_GET, [this]() { _server->sendHeader("Location", "/portal", true); _server->send(302, "text/plain", ""); });
+  _server->on("/library/test/success.html",HTTP_GET, [this]() { _server->sendHeader("Location", "/portal", true); _server->send(302, "text/plain", ""); });
+  _server->on("/success.txt",              HTTP_GET, [this]() { _server->sendHeader("Location", "/portal", true); _server->send(302, "text/plain", ""); });
+
+  // Shared static assets — long cache so every page load after the first is cheap
+  _server->on("/style.css", HTTP_GET, [this]() {
+    sendTextPage("text/css; charset=utf-8", buildBaseCSS(), "Cache-Control: max-age=3600\r\n");
+  });
+  _server->on("/admin.js", HTTP_GET, [this]() {
+    sendTextPage("application/javascript; charset=utf-8", buildAdminJS(), "Cache-Control: max-age=3600\r\n");
+  });
+
   _server->on("/",                HTTP_GET,  [this]() { handleRoot(); });
   _server->on("/accounts",        HTTP_GET,  [this]() { handleAccountsPage(); });
   _server->on("/accounts",        HTTP_POST, [this]() { handleUpsertAccount(); });
@@ -175,21 +195,33 @@ void WifiAdmin::handleSettingsPage() {
 }
 
 void WifiAdmin::sendHtmlPage(const String& html) {
+  sendTextPage("text/html; charset=utf-8", html);
+}
+
+void WifiAdmin::sendTextPage(const char* contentType, const String& body, const char* extraHeaders) {
+  sendTextPage(contentType, body.c_str(), extraHeaders);
+}
+
+void WifiAdmin::sendTextPage(const char* contentType, const char* body, const char* extraHeaders) {
   WiFiClient client = _server->client();
   if (!client) {
-    Serial.println("[WA] ERROR: no active client for HTML response");
+    Serial.println("[WA] ERROR: no active client for response");
     return;
   }
 
-  const size_t len = html.length();
+  size_t len = 0;
+  while (body[len] != '\0') len++;
   client.printf(
     "HTTP/1.1 200 OK\r\n"
-    "Content-Type: text/html; charset=utf-8\r\n"
+    "Content-Type: %s\r\n"
     "Content-Length: %u\r\n"
+    "%s"
     "Connection: close\r\n\r\n",
-    (unsigned)len);
+    contentType,
+    (unsigned)len,
+    extraHeaders ? extraHeaders : "");
 
-  const uint8_t* data = (const uint8_t*)html.c_str();
+  const uint8_t* data = (const uint8_t*)body;
   size_t offset = 0;
   while (offset < len) {
     if (!client.connected()) {
@@ -210,8 +242,9 @@ void WifiAdmin::sendHtmlPage(const String& html) {
         retries++;
       }
       if (written == 0) {
-        Serial.printf("[WA] ERROR: short write at %u/%u bytes (connected=%d)\n",
-                      (unsigned)offset, (unsigned)len, client.connected() ? 1 : 0);
+        Serial.printf("[WA] ERROR: short write at %u/%u bytes (connected=%d, type=%s)\n",
+                      (unsigned)offset, (unsigned)len, client.connected() ? 1 : 0,
+                      contentType);
         return;
       }
     }
@@ -365,75 +398,76 @@ int WifiAdmin::parseAccountIndexFromPath(const String& uri) const {
   return idx;
 }
 
-String WifiAdmin::buildHead(const char* activeTab) {
-  String html;
-  html.reserve(4096);
-  html =
-    "<!DOCTYPE html><html><head>"
-    "<meta charset='UTF-8'>"
-    "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-    "<link rel='icon' href='/favicon.svg' type='image/svg+xml'>"
-    "<link rel='alternate icon' href='/favicon.ico'>"
-    "<title>ESPWV32 Admin</title>"
-    "<style>"
+const char* WifiAdmin::buildBaseCSS() {
+  return
     "body{font-family:sans-serif;max-width:560px;margin:24px auto;padding:0 12px;background:#f4f4f4}"
-    "h1{font-size:1.4em;color:#333}"
-    "h2{font-size:1em;color:#555;margin:0 0 8px}"
-    "p{margin:6px 0}"
+    "h1{font-size:1.4em;color:#333}h2{font-size:1em;color:#555;margin:0 0 8px}p{margin:6px 0}"
     ".card{background:#fff;border-radius:6px;padding:12px;margin:10px 0;box-shadow:0 1px 3px rgba(0,0,0,.15)}"
     "label{display:block;font-size:.8em;color:#666;margin-top:6px}"
     "input[type=text],input[type=password]{width:100%;padding:6px;box-sizing:border-box;border:1px solid #ccc;border-radius:3px}"
-    ".pin-row{display:flex;gap:6px}"
-    ".pin-row input{width:48px;text-align:center;padding:6px;border:1px solid #ccc;border-radius:3px;font-size:1.2em}"
-    "button{margin-top:8px;background:#0069d9;color:#fff;border:none;padding:7px 18px;border-radius:3px;cursor:pointer}"
-    "button:hover{background:#0053aa}"
-    "button.del{background:#c00;margin-left:6px}"
-    "button.del:hover{background:#900}"
+    ".pin-row{display:flex;gap:6px}.pin-row input{width:48px;text-align:center;padding:6px;border:1px solid #ccc;border-radius:3px;font-size:1.2em}"
+    "button{margin-top:8px;background:#0069d9;color:#fff;border:none;padding:7px 18px;border-radius:3px;cursor:pointer}button:hover{background:#0053aa}"
+    "button.del{background:#c00;margin-left:6px}button.del:hover{background:#900}"
     ".btn-row{display:flex;align-items:center}"
-    ".ok{color:#1a7f1a;font-weight:bold;margin-bottom:8px}"
-    ".err{color:#c00;font-weight:bold;margin-bottom:8px}"
-    ".warn{color:#c00;font-weight:bold}"
-    ".hint{color:#666;font-size:.85em}"
+    ".ok{color:#1a7f1a;font-weight:bold;margin-bottom:8px}.err{color:#c00;font-weight:bold;margin-bottom:8px}"
+    ".warn{color:#c00;font-weight:bold}.hint{color:#666;font-size:.85em}"
     ".nav{display:flex;align-items:center;gap:8px;margin:10px 0 14px}"
-    ".tab{display:inline-block;text-decoration:none;padding:6px 10px;border-radius:4px;background:#e9ecef;color:#333}"
-    ".tab.active{background:#0069d9;color:#fff}"
-    ".spacer{flex:1}"
-    ".topstat{font-size:.85em;color:#555;white-space:nowrap}"
+    ".tab{display:inline-block;text-decoration:none;padding:6px 10px;border-radius:4px;background:#e9ecef;color:#333}.tab.active{background:#0069d9;color:#fff}"
+    ".spacer{flex:1}.topstat{font-size:.85em;color:#555;white-space:nowrap}"
     ".bat-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}"
     ".battery-shell{position:relative;width:42px;height:18px;border:2px solid #666;border-radius:4px;background:#f2f2f2;overflow:hidden}"
     ".battery-cap{width:4px;height:10px;background:#666;border-radius:0 2px 2px 0;margin-left:-6px}"
     ".battery-fill{height:100%;width:0%;background:#f0ad4e;transition:width .25s ease,background-color .25s ease}"
-    ".battery-fill.full{background:#29a329}"
-    ".battery-fill.used{background:#f0ad4e}"
-    ".battery-fill.low{background:#d9534f}"
-    ".charging{color:#1f6feb;font-weight:bold}"
-    "</style>"
-    "<script>"
+    ".battery-fill.full{background:#29a329}.battery-fill.used{background:#f0ad4e}.battery-fill.low{background:#d9534f}"
+    ".charging{color:#1f6feb;font-weight:bold}";
+}
+
+const char* WifiAdmin::buildAdminJS() {
+  return
+    "function deleteAccount(idx){if(!confirm('Delete slot '+idx+'?'))return;"
+    "fetch('/accounts/'+idx,{method:'DELETE'}).then(function(r){"
+    "if(!r.ok)throw new Error('delete failed');window.location.reload();"
+    "}).catch(function(){alert('Delete failed');});}"
     "function batteryState(p){if(p<=20)return 'Almost empty';if(p>=80)return 'Full';return 'Used';}"
     "function batteryClass(p){if(p<=20)return 'low';if(p>=80)return 'full';return 'used';}"
-    "function deleteAccount(idx){if(!confirm('Delete slot '+idx+'?'))return;fetch('/accounts/'+idx,{method:'DELETE'}).then(function(r){if(!r.ok)throw new Error('delete failed');window.location.reload();}).catch(function(){alert('Delete failed');});}"
-    "function updateBattery(){fetch('/battery',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){"
+    "function updateBattery(){fetch('/battery',{cache:'no-store'}).then(function(r){return r.json();})"
+    ".then(function(d){"
     "var p=Math.max(0,Math.min(100,parseInt(d.pct||0,10)));"
-    "var tp=document.getElementById('top-battery');if(tp)tp.textContent=p+'%';"
-    "var tc=document.getElementById('top-charge');if(tc)tc.textContent=d.charging?' ⚡':'';"
-    "var pct=document.getElementById('battery-pct');if(pct)pct.textContent=p;"
-    "var state=document.getElementById('battery-state');if(state)state.textContent=batteryState(p);"
-    "var fill=document.getElementById('battery-fill');if(fill){fill.style.width=p+'%';fill.className='battery-fill '+batteryClass(p);}"
-    "var ch=document.getElementById('charging-ind');if(ch){ch.innerHTML=d.charging?'&#9889; Charging':'Not charging';ch.className=d.charging?'charging':'';}"
-    "}).catch(function(){});}"
-    "setInterval(updateBattery,1000);"
-    "window.addEventListener('load',updateBattery);"
-    "</script></head><body>"
-    "<h1>&#x1F512; ESPWV32 Account Manager</h1>";
+    "var e=document.getElementById.bind(document);"
+    "var tb=e('top-battery');if(tb)tb.textContent=p+'%';"
+    "var tc=e('top-charge');if(tc)tc.textContent=d.charging?' \u26A1':'';"
+    "var pct=e('battery-pct');if(pct)pct.textContent=p;"
+    "var state=e('battery-state');if(state)state.textContent=batteryState(p);"
+    "var fill=e('battery-fill');if(fill){fill.style.width=p+'%';fill.className='battery-fill '+batteryClass(p);}"
+    "var ch=e('charging-ind');if(ch){ch.innerHTML=d.charging?'&#9889; Charging':'Not charging';"
+    "ch.className=d.charging?'charging':'';}}).catch(function(){});}"
+    "setInterval(updateBattery,1000);window.addEventListener('load',updateBattery);";
+}
 
-  html += "<div class='nav'>"
-          "<a class='tab " + String(strcmp(activeTab, "accounts") == 0 ? "active" : "") + "' href='/accounts'>Accounts</a>"
-          "<a class='tab " + String(strcmp(activeTab, "settings") == 0 ? "active" : "") + "' href='/settings'>Settings</a>"
-          "<div class='spacer'></div>"
-          "<span class='topstat' id='top-battery'>--%</span>"
-          "<span class='topstat' id='top-charge'></span>"
-          "</div>";
-
+String WifiAdmin::buildHead(const char* activeTab) {
+  String html;
+  html.reserve(600);
+  html += "<!DOCTYPE html><html><head>";
+  html += "<meta charset='UTF-8'>";
+  html += "<meta name='viewport' content='width=device-width,initial-scale=1'>";
+  html += "<link rel='icon' href='/favicon.svg' type='image/svg+xml'>";
+  html += "<link rel='alternate icon' href='/favicon.ico'>";
+  html += "<title>ESPWV32 Admin</title>";
+  html += "<link rel='stylesheet' href='/style.css'>";
+  html += "<script src='/admin.js'></script>";
+  html += "</head><body>";
+  html += "<h1>&#x1F512; ESPWV32 Account Manager</h1>";
+  html += "<div class='nav'>";
+  html += "<a class='tab ";
+  html += (strcmp(activeTab, "accounts") == 0) ? "active" : "";
+  html += "' href='/accounts'>Accounts</a>";
+  html += "<a class='tab ";
+  html += (strcmp(activeTab, "settings") == 0) ? "active" : "";
+  html += "' href='/settings'>Settings</a>";
+  html += "<div class='spacer'></div>";
+  html += "<span class='topstat' id='top-battery'>--%</span>";
+  html += "<span class='topstat' id='top-charge'></span>";
+  html += "</div>";
   return html;
 }
 
@@ -443,41 +477,21 @@ String WifiAdmin::buildFooter() {
 
 String WifiAdmin::buildAccountsPage(String status, int selectedSlot) {
   String html;
-  html.reserve(4096);
-  html =
-    "<!DOCTYPE html><html><head>"
-    "<meta charset='UTF-8'>"
-    "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-    "<link rel='icon' href='/favicon.svg' type='image/svg+xml'>"
-    "<link rel='alternate icon' href='/favicon.ico'>"
-    "<title>ESPWV32 Accounts</title>"
-    "<style>"
-    "body{font-family:sans-serif;max-width:560px;margin:24px auto;padding:0 12px;background:#f4f4f4}"
-    "h1{font-size:1.4em;color:#333}"
-    "h2{font-size:1em;color:#555;margin:0 0 8px}"
-    "p{margin:6px 0}"
-    ".card{background:#fff;border-radius:6px;padding:12px;margin:10px 0;box-shadow:0 1px 3px rgba(0,0,0,.15)}"
-    "label{display:block;font-size:.8em;color:#666;margin-top:6px}"
-    "input[type=text],input[type=password]{width:100%;padding:6px;box-sizing:border-box;border:1px solid #ccc;border-radius:3px}"
-    "button{margin-top:8px;background:#0069d9;color:#fff;border:none;padding:7px 18px;border-radius:3px;cursor:pointer}"
-    "button.del{background:#c00;margin-left:6px}"
-    ".btn-row{display:flex;align-items:center}"
-    ".ok{color:#1a7f1a;font-weight:bold;margin-bottom:8px}"
-    ".err{color:#c00;font-weight:bold;margin-bottom:8px}"
-    ".warn{color:#c00;font-weight:bold}"
-    ".hint{color:#666;font-size:.85em}"
-    ".nav{display:flex;align-items:center;gap:8px;margin:10px 0 14px}"
-    ".tab{display:inline-block;text-decoration:none;padding:6px 10px;border-radius:4px;background:#e9ecef;color:#333}"
-    ".tab.active{background:#0069d9;color:#fff}"
-    "</style>"
-    "<script>"
-    "function deleteAccount(idx){if(!confirm('Delete slot '+idx+'?'))return;fetch('/accounts/'+idx,{method:'DELETE'}).then(function(r){if(!r.ok)throw new Error('delete failed');window.location.reload();}).catch(function(){alert('Delete failed');});}"
-    "</script></head><body>"
-    "<h1>&#x1F512; ESPWV32 Account Manager</h1>"
-    "<div class='nav'>"
-    "<a class='tab active' href='/accounts'>Accounts</a>"
-    "<a class='tab' href='/settings'>Settings</a>"
-    "</div>";
+  html.reserve(1500);
+  html += "<!DOCTYPE html><html><head>";
+  html += "<meta charset='UTF-8'>";
+  html += "<meta name='viewport' content='width=device-width,initial-scale=1'>";
+  html += "<link rel='icon' href='/favicon.svg' type='image/svg+xml'>";
+  html += "<link rel='alternate icon' href='/favicon.ico'>";
+  html += "<title>ESPWV32 Accounts</title>";
+  html += "<link rel='stylesheet' href='/style.css'>";
+  html += "<script src='/admin.js'></script>";
+  html += "</head><body>";
+  html += "<h1>&#x1F512; ESPWV32 Account Manager</h1>";
+  html += "<div class='nav'>";
+  html += "<a class='tab active' href='/accounts'>Accounts</a>";
+  html += "<a class='tab' href='/settings'>Settings</a>";
+  html += "</div>";
 
   if (status == "saved") html += "<p class='ok'>&#10003; Account saved.</p>";
   else if (status == "bad_index") html += "<p class='err'>&#10007; Invalid account slot.</p>";

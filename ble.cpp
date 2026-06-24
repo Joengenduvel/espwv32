@@ -178,7 +178,9 @@ void BLEKeyboard::releaseAll(void)
 size_t BLEKeyboard::write(uint8_t c)
 {
   uint8_t p = press(_asciimap[c]);  // Keydown
+  delay(KEY_DELAY_MS);
   release(_asciimap[c]);            // Keyup
+  delay(KEY_DELAY_MS);
   return p;              // just return the result of press() since release() almost always returns 1
 }
 

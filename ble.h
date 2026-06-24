@@ -15,6 +15,7 @@ namespace ble {
 #define VENDOR_ID 0xe502
 #define PRODUCT_ID 0xa111
 #define PRODUCT_VERSION 0x0210
+#define KEY_DELAY_MS 5
 
 //TODO: make private
 static const uint8_t _hidReportDescriptor[] = {

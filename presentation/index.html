@@ -1,0 +1,2057 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ESPWV32 — Hardware Password Manager</title>
+<style>
+  :root {
+    --orange: #f5820d;
+    --orange-dim: #c96800;
+    --blue: #4fc3f7;
+    --red: #ef5350;
+    --green: #66bb6a;
+    --yellow: #ffee58;
+    --bg: #0d0d0d;
+    --bg2: #161616;
+    --bg3: #1e1e1e;
+    --text: #e8e8e8;
+    --muted: #888;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    overflow: hidden;
+  }
+
+  /* ── Slide container ─────────────────────────────────────────────────── */
+  .deck {
+    width: 100%; height: 100%;
+    position: relative;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 60px 80px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+    text-align: center;
+  }
+
+  .slide.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* ── Progress bar ────────────────────────────────────────────────────── */
+  #progress {
+    position: fixed;
+    bottom: 0; left: 0;
+    height: 3px;
+    background: var(--orange);
+    transition: width 0.4s ease;
+    z-index: 100;
+  }
+
+  #slide-counter {
+    position: fixed;
+    bottom: 14px; right: 24px;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    z-index: 100;
+  }
+
+  /* nav arrows */
+  .nav {
+    position: fixed;
+    bottom: 20px;
+    z-index: 100;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 22px;
+    cursor: pointer;
+    padding: 6px 12px;
+    transition: color 0.2s;
+  }
+  .nav:hover { color: var(--orange); }
+  #nav-prev { left: 20px; }
+  #nav-next { right: 60px; }
+
+  /* ── Typography ──────────────────────────────────────────────────────── */
+  .eyebrow {
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin-bottom: 16px;
+    font-weight: 600;
+  }
+
+  h1 {
+    font-size: clamp(2.4rem, 5vw, 4rem);
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 20px;
+  }
+
+  h2 {
+    font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 16px;
+  }
+
+  h3 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  p, li {
+    font-size: clamp(1rem, 1.8vw, 1.25rem);
+    line-height: 1.7;
+    color: #ccc;
+    max-width: 800px;
+  }
+
+  .big-text {
+    font-size: clamp(1.4rem, 3vw, 2rem);
+    line-height: 1.5;
+    color: var(--text);
+    max-width: 850px;
+  }
+
+  .accent { color: var(--orange); }
+  .blue   { color: var(--blue); }
+  .red    { color: var(--red); }
+  .green  { color: var(--green); }
+
+
+  /* ── Decorative elements ─────────────────────────────────────────────── */
+.divider {
+    width: 60px;
+    height: 3px;
+    background: var(--orange);
+    margin: 20px auto;
+    border-radius: 2px;
+  }
+
+  /* ── Card grid ───────────────────────────────────────────────────────── */
+  .cards {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 24px;
+    width: 100%;
+    max-width: 1000px;
+  }
+
+  .card {
+    background: var(--bg3);
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    padding: 28px 24px;
+    flex: 1;
+    min-width: 200px;
+    max-width: 280px;
+    text-align: center;
+  }
+
+  .card .icon { font-size: 36px; margin-bottom: 12px; display: block; }
+  .card h3 { color: var(--text); }
+  .card p { font-size: 0.95rem; color: var(--muted); max-width: none; }
+
+  /* ── Code block ──────────────────────────────────────────────────────── */
+  .code-block {
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.82rem;
+    text-align: left;
+    margin-top: 20px;
+    max-width: 800px;
+    width: 100%;
+    overflow: hidden;
+  }
+  .code-header {
+    background: #1e1e1e;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 1px solid #2a2a2a;
+  }
+  .code-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .code-filename { font-size: 0.72rem; color: #666; margin-left: 8px; font-family: inherit; letter-spacing: 0.2px; }
+  .code-body { padding: 8px 0 12px; }
+  .code-sep  { border-top: 1px solid #222; margin: 8px 0; }
+  .code-section-label { font-size: 0.68rem; color: #3d3d3d; letter-spacing: 1.5px; text-transform: uppercase; padding: 0 16px 4px; display: block; }
+  .code-line { display: flex; line-height: 1.7; padding: 0 16px; }
+  .ln        { color: #3a3a3a; user-select: none; min-width: 20px; text-align: right; padding-right: 18px; flex-shrink: 0; }
+  .code-block .comment { color: #6a9955; }
+
+  .code-block .fn      { color: #dcdcaa; }
+  .code-block .obj     { color: #9cdcfe; }
+  .code-block .str     { color: #ce9178; }
+  .code-block .type    { color: #4ec9b0; }
+  .code-block .op      { color: #d4d4d4; }
+  .code-block .mac     { color: #b5cea8; }
+  .code-block .num     { color: #b5cea8; }
+
+  /* ── Glossary ────────────────────────────────────────────────────────── */
+  .glossary-row {
+    display: flex;
+    gap: 10px;
+    padding: 5px 0;
+    border-bottom: 1px solid #181818;
+    align-items: baseline;
+  }
+  .gl-term {
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--orange);
+    white-space: nowrap;
+    min-width: 90px;
+  }
+  .gl-def {
+    font-size: 0.75rem;
+    color: #888;
+    line-height: 1.45;
+  }
+
+  /* ── Device photos ───────────────────────────────────────────────────── */
+  .photos {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 24px;
+  }
+
+  .photo-frame {
+    background: var(--bg3);
+    border: 2px solid #2a2a2a;
+    border-radius: 12px;
+    overflow: hidden;
+    width: 220px;
+  }
+
+  .photo-frame img {
+    width: 100%;
+    display: block;
+    object-fit: cover;
+  }
+
+  .photo-caption {
+    font-size: 0.75rem;
+    color: var(--muted);
+    padding: 8px 10px;
+    text-align: center;
+  }
+
+  /* ── Timeline ────────────────────────────────────────────────────────── */
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    text-align: left;
+    max-width: 700px;
+    width: 100%;
+    margin-top: 20px;
+  }
+
+  .timeline-item {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+  }
+
+  .timeline-dot {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--orange);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    margin-top: 2px;
+  }
+
+  .timeline-body h3 { color: var(--text); margin-bottom: 4px; }
+  .timeline-body p  { font-size: 0.95rem; color: var(--muted); max-width: none; }
+
+  /* ── Security pill row ───────────────────────────────────────────────── */
+  .pill-row {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 24px;
+  }
+
+  .pill {
+    background: var(--bg3);
+    border: 1px solid #333;
+    border-radius: 100px;
+    padding: 10px 22px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .pill.orange { border-color: var(--orange); color: var(--orange); }
+  .pill.blue   { border-color: var(--blue);   color: var(--blue); }
+  .pill.green  { border-color: var(--green);  color: var(--green); }
+  .pill.red    { border-color: var(--red);    color: var(--red); }
+
+/* ── Lists ───────────────────────────────────────────────────────────── */
+  ul.spaced { list-style: none; margin-top: 20px; }
+  ul.spaced li {
+    padding: 10px 0;
+    border-bottom: 1px solid #222;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-align: left;
+  }
+  ul.spaced li:last-child { border-bottom: none; }
+  ul.spaced .bullet { font-size: 20px; flex-shrink: 0; }
+
+  /* ── Two-col layout ──────────────────────────────────────────────────── */
+  .two-col {
+    display: flex;
+    gap: 40px;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 1100px;
+    text-align: left;
+  }
+  .two-col .col { flex: 1; }
+
+
+  /* ── Quote ───────────────────────────────────────────────────────────── */
+  blockquote {
+    border-left: 4px solid var(--orange);
+    padding-left: 24px;
+    margin: 24px auto;
+    max-width: 700px;
+    text-align: left;
+  }
+  blockquote p { font-size: 1.3rem; font-style: italic; color: var(--text); }
+  blockquote cite { font-size: 0.85rem; color: var(--muted); margin-top: 8px; display: block; }
+
+  /* ── Slide-specific backgrounds ──────────────────────────────────────── */
+  #slide-1  { background: radial-gradient(ellipse at 60% 40%, #1a0f00 0%, var(--bg) 70%); }
+  #slide-2  { background: radial-gradient(ellipse at 30% 60%, #0a1a0a 0%, var(--bg) 70%); }
+  #slide-3  { }
+  #slide-12 { background: radial-gradient(ellipse at 50% 50%, #001a1a 0%, var(--bg) 70%); }
+  #slide-15 { background: radial-gradient(ellipse at 50% 50%, #1a0f00 0%, var(--bg) 70%); }
+
+  /* ── Icecriminator ASCII art device ─────────────────────────────────── */
+  .ascii-device {
+    font-family: monospace;
+    font-size: 0.85rem;
+    color: var(--orange);
+    background: var(--bg3);
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #2a2a2a;
+    text-align: left;
+    line-height: 1.4;
+    white-space: pre;
+    margin-top: 16px;
+  }
+
+  /* ── Flow diagram ────────────────────────────────────────────────────── */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 28px;
+  }
+  .flow-box {
+    background: var(--bg3);
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 14px 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    min-width: 110px;
+    text-align: center;
+  }
+  .flow-arrow {
+    color: var(--orange);
+    font-size: 1.4rem;
+  }
+
+  /* ── Big number stat ─────────────────────────────────────────────────── */
+  .stat-row {
+    display: flex;
+    gap: 48px;
+    justify-content: center;
+    margin-top: 32px;
+    flex-wrap: wrap;
+  }
+  .stat { text-align: center; }
+  .stat .num {
+    font-size: 3rem;
+    font-weight: 800;
+    color: var(--orange);
+    line-height: 1;
+  }
+  .stat .label {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<div class="deck">
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 1 — TITLE
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide active" id="slide-1">
+    <div class="eyebrow">A Hardware Project Story</div>
+    <h1><span class="accent">ESPWV32</span><br>Hardware Password Manager</h1>
+    <div class="divider"></div>
+    <p>From a team ice cream tradition to a pocket-sized,<br>
+       encrypted, Bluetooth credential vault.</p>
+    <div style="margin-top:40px; font-size:13px; color:var(--muted); letter-spacing:2px; text-transform:uppercase;">
+      M5StickC · BLE HID · AES-256 · PBKDF2
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 2 — ORIGIN STORY SETUP
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-2">
+    <div class="eyebrow">Chapter 1 — The Origin</div>
+    <h2>It started with <span class="accent">ice cream</span></h2>
+    <div class="divider"></div>
+    <blockquote>
+      <p>"Forget to lock your PC?<br>Someone sends that Outlook invite.<br>You buy ice cream for the whole team."</p>
+      <cite>— A beloved (and expensive) team tradition</cite>
+    </blockquote>
+    <p style="margin-top: 20px;">
+      A fun ritual that kept everyone security-conscious —<br>
+      but it relied entirely on <em>forgetting</em>.
+    </p>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 3 — THE ICECRIMINATOR IDEA
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-3">
+    <div class="eyebrow">Chapter 1 — The Origin</div>
+    <h2>Introducing the <span class="accent">Icecriminator</span></h2>
+    <div class="divider"></div>
+
+    <!-- Icecriminator logo -->
+    <svg width="110" height="130" viewBox="0 0 110 130" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:18px; filter: drop-shadow(0 0 18px #f5820d88);">
+      <!-- Ice cream scoop -->
+      <circle cx="55" cy="38" r="30" fill="#f5820d"/>
+      <!-- Scoop highlight -->
+      <circle cx="44" cy="28" r="9" fill="#ffb347" opacity="0.5"/>
+      <!-- Cone body -->
+      <polygon points="55,68 28,68 55,118" fill="#c96800"/>
+      <polygon points="55,68 82,68 55,118" fill="#a85600"/>
+      <!-- Cone grid lines -->
+      <line x1="31" y1="75" x2="53" y2="115" stroke="#f5820d" stroke-width="1.2" opacity="0.5"/>
+      <line x1="38" y1="70" x2="54" y2="112" stroke="#f5820d" stroke-width="1.2" opacity="0.4"/>
+      <line x1="72" y1="75" x2="57" y2="115" stroke="#f5820d" stroke-width="1.2" opacity="0.5"/>
+      <line x1="65" y1="70" x2="56" y2="112" stroke="#f5820d" stroke-width="1.2" opacity="0.4"/>
+      <line x1="29" y1="82" x2="81" y2="82" stroke="#f5820d" stroke-width="1" opacity="0.4"/>
+      <line x1="34" y1="94" x2="76" y2="94" stroke="#f5820d" stroke-width="1" opacity="0.4"/>
+      <!-- Circuit traces on scoop -->
+      <circle cx="55" cy="38" r="30" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.15"/>
+      <line x1="38" y1="38" x2="72" y2="38" stroke="#4fc3f7" stroke-width="1.5" opacity="0.8"/>
+      <line x1="44" y1="30" x2="44" y2="46" stroke="#4fc3f7" stroke-width="1.5" opacity="0.8"/>
+      <line x1="66" y1="30" x2="66" y2="46" stroke="#4fc3f7" stroke-width="1.5" opacity="0.8"/>
+      <line x1="55" y1="16" x2="55" y2="60" stroke="#4fc3f7" stroke-width="1.5" opacity="0.8"/>
+      <!-- Solder pads -->
+      <circle cx="44" cy="30" r="3" fill="#4fc3f7" opacity="0.9"/>
+      <circle cx="66" cy="30" r="3" fill="#4fc3f7" opacity="0.9"/>
+      <circle cx="44" cy="46" r="3" fill="#4fc3f7" opacity="0.9"/>
+      <circle cx="66" cy="46" r="3" fill="#4fc3f7" opacity="0.9"/>
+      <circle cx="55" cy="38" r="4" fill="#fff" opacity="0.95"/>
+      <!-- Keyboard keys on cone -->
+      <rect x="43" y="75" width="8" height="5" rx="1" fill="#ffb347" opacity="0.7"/>
+      <rect x="55" y="75" width="8" height="5" rx="1" fill="#ffb347" opacity="0.7"/>
+      <rect x="49" y="83" width="8" height="5" rx="1" fill="#ffb347" opacity="0.7"/>
+    </svg>
+
+    <div class="two-col" style="align-items:flex-start; text-align:left;">
+      <div class="col">
+        <p style="margin-bottom:16px;">
+          An ESP32 acting as a <strong class="blue">USB HID keyboard</strong> —
+          plugged silently into an unlocked PC, it would open PowerShell and
+          run a script using the <strong class="orange">Outlook COM object</strong>
+          to create and send the calendar invite automatically,
+          before the owner even noticed.
+        </p>
+        <p>
+          Not just a prank device. A proof of concept that showed
+          how easy it is to exploit an unattended machine —
+          and how little hardware you need to do it.
+        </p>
+        <div class="pill-row" style="justify-content:flex-start; margin-top:20px;">
+          <span class="pill orange">ESP32</span>
+          <span class="pill blue">USB HID</span>
+          <span class="pill green">PowerShell</span>
+          <span class="pill" style="border-color:#a78bfa; color:#a78bfa;">Outlook COM</span>
+        </div>
+      </div>
+      <div class="col" style="flex:0 0 auto;">
+        <div class="ascii-device">
+┌────────────────────────────────┐
+│  🍦 ICECRIMINATOR              │
+│                                │
+│  > powershell.exe              │
+│  > $ol = New-Object            │
+│      -ComObject Outlook.App    │
+│  > $inv = $ol.CreateItem(1)    │
+│  > $inv.Subject = "Ice cream?" │
+│  > $inv.Send()  ✓              │
+└────────────────────────────────┘
+     │ USB
+     ▼
+[PC left unlocked]</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 4 — THE LESSON
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-4">
+    <div class="eyebrow">Chapter 1 — The Origin</div>
+    <h2>The real lesson</h2>
+    <div class="divider"></div>
+    <div class="big-text" style="margin: 0 auto;">
+      A tiny microcontroller, a USB cable, and a few lines of code —
+      and you own the keyboard of any unlocked machine.
+    </div>
+    <div class="cards" style="margin-top:40px;">
+      <div class="card">
+        <span class="icon">🔌</span>
+        <h3>Physical Access</h3>
+        <p>No network, no credentials needed — just a USB port.</p>
+      </div>
+      <div class="card">
+        <span class="icon">⌨️</span>
+        <h3>HID Devices are Trusted</h3>
+        <p>Operating systems trust keyboards implicitly.</p>
+      </div>
+      <div class="card">
+        <span class="icon">💡</span>
+        <h3>Automation Changes Everything</h3>
+        <p>What took seconds manually now takes milliseconds.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 5 — THE PIVOT
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-5">
+    <div class="eyebrow">Chapter 2 — Evolution</div>
+    <h2>Same idea. <span class="accent">Flipped around.</span></h2>
+    <div class="divider"></div>
+    <p style="margin-bottom:30px;">
+      The Icecriminator proved the concept: an ESP32 can <em>be</em> a keyboard.
+      What if instead of being a <span class="red">threat</span>,
+      it became a <span class="green">tool</span>?
+    </p>
+    <div class="flow">
+      <div class="flow-box" style="border-color:var(--red); color:var(--red);">
+        Hostile<br>keyboard
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:var(--muted); color:var(--muted);">
+        Rethink
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:var(--green); color:var(--green);">
+        Trusted<br>keyboard
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:var(--orange); color:var(--orange);">
+        ESPWV32
+      </div>
+    </div>
+    <p style="margin-top:32px; color:var(--muted);">
+      What if you carried your own keyboard — one that only <em>you</em> control,
+      that types your passwords without ever exposing them?
+    </p>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 6 — THE PROBLEM
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-6">
+    <div class="eyebrow">Chapter 2 — The Problem</div>
+    <h2>Password management is <span class="red">broken</span></h2>
+    <div class="divider"></div>
+    <ul class="spaced" style="max-width:680px; width:100%;">
+      <li>
+        <span class="bullet">💻</span>
+        <div>
+          <strong>Software password managers</strong> live on your device —
+          and vanish or become inaccessible when that device does.
+        </div>
+      </li>
+      <li>
+        <span class="bullet">☁️</span>
+        <div>
+          <strong>Cloud sync</strong> means your secrets are someone else's
+          problem too. Breach one provider, expose millions.
+        </div>
+      </li>
+      <li>
+        <span class="bullet">🧠</span>
+        <div>
+          <strong>Memorising passwords</strong> leads to reuse, weak patterns,
+          and the sticky note under the keyboard.
+        </div>
+      </li>
+      <li>
+        <span class="bullet">📱</span>
+        <div>
+          <strong>Cross-device consistency</strong> is painful — one manager
+          for your work laptop, another on your personal machine, something
+          else on your phone and tablet. They never quite sync, and each
+          platform has its own quirks.
+        </div>
+      </li>
+      <li>
+        <span class="bullet">🔑</span>
+        <div>
+          <strong>Hardware tokens</strong> exist — but they're expensive,
+          proprietary, or too limited.
+        </div>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 6b — ATTACK VECTORS: CLOUD VS OFFLINE
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-6b">
+    <div class="eyebrow">Chapter 2 — Attack Vectors</div>
+    <h2>Cloud <span class="red">vs</span> Offline — where can you be hit?</h2>
+    <div class="divider"></div>
+    <div class="two-col" style="align-items:flex-start; gap:32px; max-width:1050px;">
+      <div class="col">
+        <div style="border:1px solid var(--red); border-radius:12px; padding:20px 22px; background:#1a0808;">
+          <h3 style="color:var(--red); margin-bottom:14px;">☁️ Cloud Password Manager</h3>
+          <ul class="spaced" style="gap:0;">
+            <li style="border-color:#2a1a1a; padding:8px 0;">
+              <span class="bullet" style="font-size:15px;">🏢</span>
+              <div style="font-size:0.92rem;"><strong>Provider breach</strong> — your vault travels with the attacker. <span style="color:var(--muted);">(LastPass 2022, others)</span></div>
+            </li>
+            <li style="border-color:#2a1a1a; padding:8px 0;">
+              <span class="bullet" style="font-size:15px;">🎣</span>
+              <div style="font-size:0.92rem;"><strong>Phishing &amp; account takeover</strong> — one fake login page unlocks everything.</div>
+            </li>
+            <li style="border-color:#2a1a1a; padding:8px 0;">
+              <span class="bullet" style="font-size:15px;">🧩</span>
+              <div style="font-size:0.92rem;"><strong>Malicious browser extension</strong> — sits in the same process as the vault UI.</div>
+            </li>
+            <li style="border-color:#2a1a1a; padding:8px 0;">
+              <span class="bullet" style="font-size:15px;">📋</span>
+              <div style="font-size:0.92rem;"><strong>Clipboard hijacking</strong> — malware reads the password the moment it's copied.</div>
+            </li>
+            <li style="border-color:#2a1a1a; padding:8px 0;">
+              <span class="bullet" style="font-size:15px;">🌐</span>
+              <div style="font-size:0.92rem;"><strong>Sync endpoint MITM</strong> — traffic between devices can be intercepted.</div>
+            </li>
+            <li style="border-color:transparent; padding:8px 0;">
+              <span class="bullet" style="font-size:15px;">👤</span>
+              <div style="font-size:0.92rem;"><strong>Insider threat</strong> — provider employees with elevated access.</div>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div style="border:1px solid var(--green); border-radius:12px; padding:20px 22px; background:#081a08;">
+          <h3 style="color:var(--green); margin-bottom:14px;">🔒 ESPWV32 (Offline Hardware)</h3>
+          <ul class="spaced" style="gap:0;">
+            <li style="border-color:#1a2a1a; padding:8px 0;">
+              <span class="bullet" style="font-size:15px;">🔌</span>
+              <div style="font-size:0.92rem;"><strong>No provider, no breach</strong> — there is no server to compromise.</div>
+            </li>
+            <li style="border-color:#1a2a1a; padding:8px 0;">
+              <span class="bullet" style="font-size:15px;">📵</span>
+              <div style="font-size:0.92rem;"><strong>No phishing surface</strong> — credentials never leave the device as text.</div>
+            </li>
+            <li style="border-color:#1a2a1a; padding:8px 0;">
+              <span class="bullet" style="font-size:15px;">⌨️</span>
+              <div style="font-size:0.92rem;"><strong>Appears as a keyboard</strong> — the host OS sees keystrokes, not a secret store.</div>
+            </li>
+            <li style="border-color:#1a2a1a; padding:8px 0;">
+              <span class="bullet" style="font-size:15px;">📦</span>
+              <div style="font-size:0.92rem;"><strong>Physical theft</strong> — mitigated by PIN + AES-256. Data unreadable without both.</div>
+            </li>
+            <li style="border-color:#1a2a1a; padding:8px 0;">
+              <span class="bullet" style="font-size:15px;">📡</span>
+              <div style="font-size:0.92rem;"><strong>BLE eavesdropping</strong> — blocked by SC+MITM bonding with a device-side passkey.</div>
+            </li>
+            <li style="border-color:transparent; padding:8px 0;">
+              <span class="bullet" style="font-size:15px;">💾</span>
+              <div style="font-size:0.92rem;"><strong>Raw EEPROM dump</strong> — AES-256-CBC encryption renders it unreadable.</div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 6c — THREAT MODEL
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-6c" style="padding: 40px 60px;">
+    <div class="eyebrow">Chapter 2 — Threat Model</div>
+    <h2>Threat model</h2>
+    <div class="divider"></div>
+    <div style="width:100%; max-width:1000px; overflow:auto; margin-top:8px;">
+      <table style="width:100%; border-collapse:collapse; font-size:0.88rem; text-align:left;">
+        <thead>
+          <tr style="border-bottom:2px solid #333;">
+            <th style="padding:10px 14px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:1px; width:30%;">Threat</th>
+            <th style="padding:10px 14px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:1px; width:14%; text-align:center;">Likelihood</th>
+            <th style="padding:10px 14px; color:var(--red); font-weight:600; text-transform:uppercase; letter-spacing:1px; width:26%; text-align:center;">☁️ Cloud PM</th>
+            <th style="padding:10px 14px; color:var(--green); font-weight:600; text-transform:uppercase; letter-spacing:1px; width:30%; text-align:center;">🔒 ESPWV32</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid #1e1e1e; background:#111;">
+            <td style="padding:10px 14px;"><strong>Provider / supply-chain breach</strong></td>
+            <td style="padding:10px 14px; text-align:center; color:#f59e0b;">High</td>
+            <td style="padding:10px 14px; text-align:center; color:var(--red);">🔴 Full vault exposed</td>
+            <td style="padding:10px 14px; text-align:center; color:var(--green);">✅ No provider exists</td>
+          </tr>
+          <tr style="border-bottom:1px solid #1e1e1e;">
+            <td style="padding:10px 14px;"><strong>Phishing / account takeover</strong></td>
+            <td style="padding:10px 14px; text-align:center; color:#f59e0b;">High</td>
+            <td style="padding:10px 14px; text-align:center; color:var(--red);">🔴 Single password unlocks all</td>
+            <td style="padding:10px 14px; text-align:center; color:var(--green);">✅ No online account</td>
+          </tr>
+          <tr style="border-bottom:1px solid #1e1e1e; background:#111;">
+            <td style="padding:10px 14px;"><strong>Malware on host machine</strong></td>
+            <td style="padding:10px 14px; text-align:center; color:#f59e0b;">Medium</td>
+            <td style="padding:10px 14px; text-align:center; color:var(--red);">🔴 Clipboard &amp; memory readable</td>
+            <td style="padding:10px 14px; text-align:center; color:var(--yellow);">🟡 Keystrokes visible to keylogger</td>
+          </tr>
+          <tr style="border-bottom:1px solid #1e1e1e;">
+            <td style="padding:10px 14px;"><strong>Physical device theft</strong></td>
+            <td style="padding:10px 14px; text-align:center; color:var(--green);">Low</td>
+            <td style="padding:10px 14px; text-align:center; color:var(--green);">✅ Cloud copy survives</td>
+            <td style="padding:10px 14px; text-align:center; color:var(--yellow);">🟡 PIN + AES-256 protects data</td>
+          </tr>
+          <tr style="border-bottom:1px solid #1e1e1e; background:#111;">
+            <td style="padding:10px 14px;"><strong>BLE eavesdropping</strong></td>
+            <td style="padding:10px 14px; text-align:center; color:var(--green);">Low</td>
+            <td style="padding:10px 14px; text-align:center; color:var(--muted);">— N/A</td>
+            <td style="padding:10px 14px; text-align:center; color:var(--green);">✅ SC+MITM bonding</td>
+          </tr>
+          <tr style="border-bottom:1px solid #1e1e1e;">
+            <td style="padding:10px 14px;"><strong>Physical EEPROM / memory read</strong></td>
+            <td style="padding:10px 14px; text-align:center; color:var(--green);">Very low</td>
+            <td style="padding:10px 14px; text-align:center; color:var(--muted);">— N/A</td>
+            <td style="padding:10px 14px; text-align:center; color:var(--green);">✅ AES-256-CBC encrypted</td>
+          </tr>
+          <tr style="border-bottom:1px solid #1e1e1e; background:#111;">
+            <td style="padding:10px 14px;"><strong>Network / sync interception</strong></td>
+            <td style="padding:10px 14px; text-align:center; color:#f59e0b;">Medium</td>
+            <td style="padding:10px 14px; text-align:center; color:var(--red);">🔴 Sync traffic exposed</td>
+            <td style="padding:10px 14px; text-align:center; color:var(--green);">✅ No network sync</td>
+          </tr>
+          <tr>
+            <td style="padding:10px 14px;"><strong>PIN brute force</strong></td>
+            <td style="padding:10px 14px; text-align:center; color:var(--green);">Low</td>
+            <td style="padding:10px 14px; text-align:center; color:var(--muted);">— N/A</td>
+            <td style="padding:10px 14px; text-align:center; color:var(--green);">✅ PBKDF2 10k iterations</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:14px; font-size:0.78rem; color:var(--muted);">
+      🟡 Shared risk with any physical keyboard — keylogger-resistant solutions (passkeys, WebAuthn) are the next frontier.
+    </p>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 6d — RISK CHART
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-6d" style="padding:40px 60px;">
+    <div class="eyebrow">Chapter 2 — Risk Landscape</div>
+    <h2>Where are you actually <span class="red">vulnerable</span>?</h2>
+    <div class="divider"></div>
+
+    <svg viewBox="0 0 720 360" xmlns="http://www.w3.org/2000/svg"
+         style="max-width:720px;width:100%;margin-top:4px;">
+
+      <!-- ── Risk zone backgrounds ─────────────────────────────────── -->
+      <rect x="90" y="175" width="280" height="135" rx="4" fill="#66bb6a" opacity="0.05"/>
+      <rect x="370" y="30"  width="280" height="145" rx="4" fill="#ef5350"  opacity="0.05"/>
+      <text x="230" y="300" font-family="monospace" font-size="9" fill="#66bb6a" opacity="0.6" text-anchor="middle">LOW RISK ZONE</text>
+      <text x="510" y="48"  font-family="monospace" font-size="9" fill="#ef5350"  opacity="0.6" text-anchor="middle">HIGH RISK ZONE</text>
+
+      <!-- ── Grid lines ─────────────────────────────────────────────── -->
+      <line x1="230" y1="30" x2="230" y2="310" stroke="#1e1e1e" stroke-width="1" stroke-dasharray="3,3"/>
+      <line x1="370" y1="30" x2="370" y2="310" stroke="#2a2a2a" stroke-width="1" stroke-dasharray="4,3"/>
+      <line x1="510" y1="30" x2="510" y2="310" stroke="#1e1e1e" stroke-width="1" stroke-dasharray="3,3"/>
+      <line x1="90" y1="242" x2="650" y2="242" stroke="#1e1e1e" stroke-width="1" stroke-dasharray="3,3"/>
+      <line x1="90" y1="175" x2="650" y2="175" stroke="#2a2a2a" stroke-width="1" stroke-dasharray="4,3"/>
+      <line x1="90" y1="108" x2="650" y2="108" stroke="#1e1e1e" stroke-width="1" stroke-dasharray="3,3"/>
+
+      <!-- ── Axes ───────────────────────────────────────────────────── -->
+      <line x1="90" y1="310" x2="650" y2="310" stroke="#444" stroke-width="1.5"/>
+      <line x1="90" y1="30"  x2="90"  y2="310" stroke="#444" stroke-width="1.5"/>
+      <!-- arrowheads -->
+      <polygon points="650,306 658,310 650,314" fill="#444"/>
+      <polygon points="86,30 90,22 94,30" fill="#444"/>
+
+      <!-- X labels -->
+      <text x="370" y="348" font-family="monospace" font-size="9.5" fill="#666" text-anchor="middle">Probability of being attacked  →</text>
+      <text x="90"  y="324" font-family="monospace" font-size="7.5" fill="#444" text-anchor="middle">None</text>
+      <text x="230" y="324" font-family="monospace" font-size="7.5" fill="#444" text-anchor="middle">Low</text>
+      <text x="370" y="324" font-family="monospace" font-size="7.5" fill="#444" text-anchor="middle">Medium</text>
+      <text x="510" y="324" font-family="monospace" font-size="7.5" fill="#444" text-anchor="middle">High</text>
+      <text x="650" y="324" font-family="monospace" font-size="7.5" fill="#444" text-anchor="middle">Certain</text>
+
+      <!-- Y labels -->
+      <text x="22" y="175" font-family="monospace" font-size="9.5" fill="#666" text-anchor="middle" transform="rotate(-90,22,175)">Success rate if attacked  →</text>
+      <text x="82" y="313" font-family="monospace" font-size="7.5" fill="#444" text-anchor="end">None</text>
+      <text x="82" y="245" font-family="monospace" font-size="7.5" fill="#444" text-anchor="end">Low</text>
+      <text x="82" y="178" font-family="monospace" font-size="7.5" fill="#444" text-anchor="end">Med</text>
+      <text x="82" y="111" font-family="monospace" font-size="7.5" fill="#444" text-anchor="end">High</text>
+      <text x="82" y="36"  font-family="monospace" font-size="7.5" fill="#444" text-anchor="end">Max</text>
+
+      <!-- ── Cloud PM bubbles ───────────────────────────────────────── -->
+
+      <!-- Provider / supply-chain breach  prob≈6 success≈8.5 -->
+      <circle cx="426" cy="80" r="22" fill="#ef5350" opacity="0.18" stroke="#ef5350" stroke-width="1.8"/>
+      <text x="426" y="84" font-family="monospace" font-size="7.5" fill="#ef5350" text-anchor="middle">☁ breach</text>
+      <line x1="426" y1="58" x2="426" y2="50" stroke="#ef5350" stroke-width="0.8" stroke-dasharray="2,1" opacity="0.7"/>
+      <text x="426" y="46" font-family="monospace" font-size="7.5" fill="#ef5350" text-anchor="middle">Provider breach</text>
+
+      <!-- Phishing / account takeover  prob≈7.5 success≈6 -->
+      <circle cx="510" cy="175" r="18" fill="#ef5350" opacity="0.18" stroke="#ef5350" stroke-width="1.8"/>
+      <text x="510" y="179" font-family="monospace" font-size="7.5" fill="#ef5350" text-anchor="middle">🎣 phish</text>
+      <line x1="528" y1="170" x2="542" y2="162" stroke="#ef5350" stroke-width="0.8" stroke-dasharray="2,1" opacity="0.7"/>
+      <text x="548" y="158" font-family="monospace" font-size="7.5" fill="#ef5350">Phishing /</text>
+      <text x="548" y="168" font-family="monospace" font-size="7.5" fill="#ef5350">acc. takeover</text>
+
+      <!-- Malware / clipboard  prob≈5 success≈7 -->
+      <circle cx="370" cy="108" r="17" fill="#f5820d" opacity="0.18" stroke="#f5820d" stroke-width="1.8"/>
+      <text x="370" y="112" font-family="monospace" font-size="7.5" fill="#f5820d" text-anchor="middle">🐛 malware</text>
+      <line x1="353" y1="104" x2="340" y2="96" stroke="#f5820d" stroke-width="0.8" stroke-dasharray="2,1" opacity="0.7"/>
+      <text x="252" y="90"  font-family="monospace" font-size="7.5" fill="#f5820d" text-anchor="middle">Malware /</text>
+      <text x="252" y="100" font-family="monospace" font-size="7.5" fill="#f5820d" text-anchor="middle">clipboard hijack</text>
+
+      <!-- ── ESPWV32 bubbles ────────────────────────────────────────── -->
+
+      <!-- Device theft + PIN crack  prob≈2 success≈2 -->
+      <circle cx="202" cy="270" r="17" fill="#66bb6a" opacity="0.18" stroke="#66bb6a" stroke-width="1.8"/>
+      <text x="202" y="274" font-family="monospace" font-size="7.5" fill="#66bb6a" text-anchor="middle">📦 theft</text>
+      <line x1="202" y1="253" x2="202" y2="246" stroke="#66bb6a" stroke-width="0.8" stroke-dasharray="2,1" opacity="0.7"/>
+      <text x="202" y="241" font-family="monospace" font-size="7.5" fill="#66bb6a" text-anchor="middle">Device theft</text>
+      <text x="202" y="232" font-family="monospace" font-size="7"   fill="#555"    text-anchor="middle">+ PIN + AES crack</text>
+
+      <!-- EEPROM forensics  prob≈1 success≈2 -->
+      <circle cx="118" cy="270" r="14" fill="#66bb6a" opacity="0.18" stroke="#66bb6a" stroke-width="1.5"/>
+      <text x="118" y="274" font-family="monospace" font-size="7" fill="#66bb6a" text-anchor="middle">💾 dump</text>
+      <line x1="118" y1="256" x2="118" y2="248" stroke="#66bb6a" stroke-width="0.8" stroke-dasharray="2,1" opacity="0.7"/>
+      <text x="118" y="244" font-family="monospace" font-size="7" fill="#66bb6a" text-anchor="middle">EEPROM</text>
+      <text x="118" y="235" font-family="monospace" font-size="7" fill="#555"    text-anchor="middle">forensics</text>
+
+      <!-- BLE interception  prob≈1 success≈1 -->
+      <circle cx="118" cy="303" r="11" fill="#4fc3f7" opacity="0.18" stroke="#4fc3f7" stroke-width="1.5"/>
+      <text x="118" y="307" font-family="monospace" font-size="6.5" fill="#4fc3f7" text-anchor="middle">📡 BLE</text>
+      <line x1="129" y1="303" x2="148" y2="303" stroke="#4fc3f7" stroke-width="0.8" stroke-dasharray="2,1" opacity="0.7"/>
+      <text x="152" y="307" font-family="monospace" font-size="7" fill="#4fc3f7">BLE intercept</text>
+
+      <!-- ── Legend ─────────────────────────────────────────────────── -->
+      <rect x="456" y="232" width="178" height="50" rx="6" fill="#111" stroke="#2a2a2a" stroke-width="1"/>
+      <circle cx="474" cy="247" r="7" fill="#ef5350" opacity="0.2" stroke="#ef5350" stroke-width="1.2"/>
+      <text x="487" y="251" font-family="monospace" font-size="8" fill="#ef5350">Cloud Password Manager</text>
+      <circle cx="474" cy="268" r="7" fill="#66bb6a" opacity="0.2" stroke="#66bb6a" stroke-width="1.2"/>
+      <text x="487" y="272" font-family="monospace" font-size="8" fill="#66bb6a">ESPWV32 (hardware)</text>
+
+    </svg>
+
+    <p style="font-size:0.78rem; color:var(--muted); margin-top:8px;">
+      Hardware shifts <em>all</em> risk into the physical domain — where the attacker needs
+      your device, your PIN, <em>and</em> specialist skills. Simultaneously.
+    </p>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 7 — INTRODUCING ESPWV32
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-7">
+    <div class="eyebrow">Chapter 3 — The Solution</div>
+    <h2>Meet <span class="accent">ESPWV32</span></h2>
+    <div class="divider"></div>
+    <p class="big-text" style="margin: 0 auto 32px;">
+      A pocket-sized hardware password manager that pairs with any device
+      over Bluetooth and <em>types</em> your credentials for you —
+      without ever trusting the host machine.
+    </p>
+    <div class="stat-row">
+      <div class="stat">
+        <div class="num">AES</div>
+        <div class="label">256-bit encryption</div>
+      </div>
+      <div class="stat">
+        <div class="num">BLE</div>
+        <div class="label">Wireless &amp; untethered</div>
+      </div>
+      <div class="stat">
+        <div class="num">~€20</div>
+        <div class="label">Total hardware cost</div>
+      </div>
+      <div class="stat">
+        <div class="num">0</div>
+        <div class="label">Cloud dependencies</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 8 — THE DEVICE
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-8">
+    <div class="eyebrow">Chapter 3 — The Hardware</div>
+    <h2>The device</h2>
+    <div class="divider"></div>
+    <div class="two-col">
+      <div class="col">
+        <div class="photos">
+          <div class="photo-frame">
+            <svg viewBox="0 0 220 115" xmlns="http://www.w3.org/2000/svg" width="100%" style="display:block;background:#0a0a0a;">
+              <!-- Device body -->
+              <rect x="2" y="10" width="214" height="90" rx="13" fill="#111" stroke="#f5820d" stroke-width="1.8"/>
+              <!-- M5 badge -->
+              <rect x="2" y="10" width="66" height="90" rx="13" fill="#1a0900"/>
+              <rect x="37" y="10" width="31" height="90" fill="#1a0900"/>
+              <text x="36" y="62" font-family="Arial,sans-serif" font-weight="900" font-size="19" fill="#f5820d" text-anchor="middle">M5</text>
+              <line x1="68" y1="11" x2="68" y2="99" stroke="#f5820d" stroke-width="1" opacity="0.3" stroke-dasharray="3,2"/>
+              <!-- Screen -->
+              <rect x="72" y="16" width="136" height="78" rx="3" fill="#050510" stroke="#4fc3f7" stroke-width="1.2"/>
+              <!-- Button A top -->
+              <rect x="152" y="8" width="38" height="4" rx="2" fill="#f5820d" opacity="0.55"/>
+              <!-- Button B right -->
+              <rect x="215" y="36" width="4" height="26" rx="2" fill="#f5820d" opacity="0.55"/>
+              <!-- USB-C -->
+              <rect x="10" y="99" width="18" height="3" rx="1.5" fill="none" stroke="#f5820d" stroke-width="1" opacity="0.4"/>
+              <!-- Screen: battery -->
+              <rect x="193" y="18" width="12" height="7" rx="1" fill="none" stroke="#888" stroke-width="0.8"/>
+              <rect x="205" y="20.5" width="1.5" height="2" fill="#888"/>
+              <rect x="194" y="19" width="9" height="5" rx="0.5" fill="#4fc3f7" opacity="0.7"/>
+              <!-- Screen: device ID -->
+              <text x="75" y="26" font-family="monospace" font-size="5.5" fill="#555">a3f2b8c1d4e2</text>
+              <!-- Screen: "ES" large -->
+              <text x="76" y="52" font-family="monospace" font-weight="700" font-size="20" fill="white">ES</text>
+              <!-- Screen: "PWV" large -->
+              <text x="76" y="73" font-family="monospace" font-weight="700" font-size="20" fill="white">PWV</text>
+              <!-- Screen: "32" superscript -->
+              <text x="157" y="30" font-family="monospace" font-weight="700" font-size="13" fill="white">32</text>
+              <!-- Screen: lock body -->
+              <rect x="131" y="39" width="29" height="22" rx="2" fill="none" stroke="#ef5350" stroke-width="1.5"/>
+              <!-- Screen: lock shackle -->
+              <path d="M135,39 L135,27 Q135,20 146,20 Q157,20 157,27 L157,39" fill="none" stroke="#ef5350" stroke-width="1.5"/>
+              <!-- Screen: keyhole -->
+              <circle cx="146" cy="48" r="2.5" fill="none" stroke="#ef5350" stroke-width="1" opacity="0.8"/>
+              <line x1="146" y1="50.5" x2="146" y2="56" stroke="#ef5350" stroke-width="1.5" opacity="0.8"/>
+            </svg>
+            <div class="photo-caption">Start screen — ready to pair</div>
+          </div>
+          <div class="photo-frame">
+            <svg viewBox="0 0 220 115" xmlns="http://www.w3.org/2000/svg" width="100%" style="display:block;background:#0a0a0a;">
+              <rect x="2" y="10" width="214" height="90" rx="13" fill="#111" stroke="#f5820d" stroke-width="1.8"/>
+              <rect x="2" y="10" width="66" height="90" rx="13" fill="#1a0900"/>
+              <rect x="37" y="10" width="31" height="90" fill="#1a0900"/>
+              <text x="36" y="62" font-family="Arial,sans-serif" font-weight="900" font-size="19" fill="#f5820d" text-anchor="middle">M5</text>
+              <line x1="68" y1="11" x2="68" y2="99" stroke="#f5820d" stroke-width="1" opacity="0.3" stroke-dasharray="3,2"/>
+              <rect x="72" y="16" width="136" height="78" rx="3" fill="#050510" stroke="#4fc3f7" stroke-width="1.2"/>
+              <rect x="152" y="8" width="38" height="4" rx="2" fill="#f5820d" opacity="0.55"/>
+              <rect x="215" y="36" width="4" height="26" rx="2" fill="#f5820d" opacity="0.55"/>
+              <rect x="10" y="99" width="18" height="3" rx="1.5" fill="none" stroke="#f5820d" stroke-width="1" opacity="0.4"/>
+              <!-- Screen: battery -->
+              <rect x="193" y="18" width="12" height="7" rx="1" fill="none" stroke="#888" stroke-width="0.8"/>
+              <rect x="205" y="20.5" width="1.5" height="2" fill="#888"/>
+              <rect x="194" y="19" width="10" height="5" rx="0.5" fill="#66bb6a" opacity="0.7"/>
+              <!-- Screen: PIN label -->
+              <text x="76" y="40" font-family="monospace" font-weight="600" font-size="11" fill="white">PIN:</text>
+              <!-- Screen: PIN value large -->
+              <text x="76" y="72" font-family="monospace" font-weight="700" font-size="22" fill="white">751137</text>
+            </svg>
+            <div class="photo-caption">BLE pairing PIN display</div>
+          </div>
+        </div>
+      </div>
+      <div class="col" style="text-align:left;">
+        <h3 style="color:var(--orange); margin-bottom:16px;">M5StickC (ESP32)</h3>
+        <ul class="spaced">
+          <li><span class="bullet">📟</span><div>1.14" colour LCD screen</div></li>
+          <li><span class="bullet">🔋</span><div>Built-in rechargeable battery</div></li>
+          <li><span class="bullet">📡</span><div>Dual Bluetooth + WiFi radio</div></li>
+          <li><span class="bullet">🔘</span><div>Two physical buttons — the entire UI</div></li>
+          <li><span class="bullet">📦</span><div>Smaller than a USB stick</div></li>
+        </ul>
+        <a href="https://shop.m5stack.com/products/m5stickc-plus-esp32-pico-mini-iot-development-kit"
+           target="_blank"
+           style="display:inline-block; margin-top:20px; font-size:0.85rem;
+                  color:var(--orange); text-decoration:none; border:1px solid var(--orange);
+                  border-radius:100px; padding:8px 18px;">
+          🛒 Buy the hardware
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 9 — USER JOURNEY
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-9">
+    <div class="eyebrow">Chapter 4 — Using It</div>
+    <h2>The user journey</h2>
+    <div class="divider"></div>
+    <div class="photos" style="gap:16px; margin-bottom:20px;">
+      <div class="photo-frame">
+        <svg viewBox="0 0 220 115" xmlns="http://www.w3.org/2000/svg" width="100%" style="display:block;background:#0a0a0a;">
+          <rect x="2" y="10" width="214" height="90" rx="13" fill="#111" stroke="#f5820d" stroke-width="1.8"/>
+          <rect x="2" y="10" width="66" height="90" rx="13" fill="#1a0900"/>
+          <rect x="37" y="10" width="31" height="90" fill="#1a0900"/>
+          <text x="36" y="62" font-family="Arial,sans-serif" font-weight="900" font-size="19" fill="#f5820d" text-anchor="middle">M5</text>
+          <line x1="68" y1="11" x2="68" y2="99" stroke="#f5820d" stroke-width="1" opacity="0.3" stroke-dasharray="3,2"/>
+          <rect x="72" y="16" width="136" height="78" rx="3" fill="#050510" stroke="#4fc3f7" stroke-width="1.2"/>
+          <rect x="152" y="8" width="38" height="4" rx="2" fill="#f5820d" opacity="0.55"/>
+          <rect x="215" y="36" width="4" height="26" rx="2" fill="#f5820d" opacity="0.55"/>
+          <rect x="10" y="99" width="18" height="3" rx="1.5" fill="none" stroke="#f5820d" stroke-width="1" opacity="0.4"/>
+          <rect x="193" y="18" width="12" height="7" rx="1" fill="none" stroke="#888" stroke-width="0.8"/>
+          <rect x="205" y="20.5" width="1.5" height="2" fill="#888"/>
+          <rect x="194" y="19" width="9" height="5" rx="0.5" fill="#4fc3f7" opacity="0.7"/>
+          <text x="75" y="26" font-family="monospace" font-size="5.5" fill="#555">a3f2b8c1d4e2</text>
+          <text x="76" y="52" font-family="monospace" font-weight="700" font-size="20" fill="white">ES</text>
+          <text x="76" y="73" font-family="monospace" font-weight="700" font-size="20" fill="white">PWV</text>
+          <text x="157" y="30" font-family="monospace" font-weight="700" font-size="13" fill="white">32</text>
+          <rect x="131" y="39" width="29" height="22" rx="2" fill="none" stroke="#ef5350" stroke-width="1.5"/>
+          <path d="M135,39 L135,27 Q135,20 146,20 Q157,20 157,27 L157,39" fill="none" stroke="#ef5350" stroke-width="1.5"/>
+          <circle cx="146" cy="48" r="2.5" fill="none" stroke="#ef5350" stroke-width="1" opacity="0.8"/>
+          <line x1="146" y1="50.5" x2="146" y2="56" stroke="#ef5350" stroke-width="1.5" opacity="0.8"/>
+        </svg>
+        <div class="photo-caption">1. Power on<br>Broadcasting BLE</div>
+      </div>
+      <div class="photo-frame">
+        <svg viewBox="0 0 220 115" xmlns="http://www.w3.org/2000/svg" width="100%" style="display:block;background:#0a0a0a;">
+          <rect x="2" y="10" width="214" height="90" rx="13" fill="#111" stroke="#f5820d" stroke-width="1.8"/>
+          <rect x="2" y="10" width="66" height="90" rx="13" fill="#1a0900"/>
+          <rect x="37" y="10" width="31" height="90" fill="#1a0900"/>
+          <text x="36" y="62" font-family="Arial,sans-serif" font-weight="900" font-size="19" fill="#f5820d" text-anchor="middle">M5</text>
+          <line x1="68" y1="11" x2="68" y2="99" stroke="#f5820d" stroke-width="1" opacity="0.3" stroke-dasharray="3,2"/>
+          <rect x="72" y="16" width="136" height="78" rx="3" fill="#050510" stroke="#4fc3f7" stroke-width="1.2"/>
+          <rect x="152" y="8" width="38" height="4" rx="2" fill="#f5820d" opacity="0.55"/>
+          <rect x="215" y="36" width="4" height="26" rx="2" fill="#f5820d" opacity="0.55"/>
+          <rect x="10" y="99" width="18" height="3" rx="1.5" fill="none" stroke="#f5820d" stroke-width="1" opacity="0.4"/>
+          <rect x="193" y="18" width="12" height="7" rx="1" fill="none" stroke="#888" stroke-width="0.8"/>
+          <rect x="205" y="20.5" width="1.5" height="2" fill="#888"/>
+          <rect x="194" y="19" width="10" height="5" rx="0.5" fill="#66bb6a" opacity="0.7"/>
+          <text x="76" y="40" font-family="monospace" font-weight="600" font-size="11" fill="white">PIN:</text>
+          <text x="76" y="72" font-family="monospace" font-weight="700" font-size="22" fill="white">751137</text>
+        </svg>
+        <div class="photo-caption">2. Host connects<br>PIN shown on device</div>
+      </div>
+      <div class="photo-frame">
+        <svg viewBox="0 0 220 115" xmlns="http://www.w3.org/2000/svg" width="100%" style="display:block;background:#0a0a0a;">
+          <rect x="2" y="10" width="214" height="90" rx="13" fill="#111" stroke="#f5820d" stroke-width="1.8"/>
+          <rect x="2" y="10" width="66" height="90" rx="13" fill="#1a0900"/>
+          <rect x="37" y="10" width="31" height="90" fill="#1a0900"/>
+          <text x="36" y="62" font-family="Arial,sans-serif" font-weight="900" font-size="19" fill="#f5820d" text-anchor="middle">M5</text>
+          <line x1="68" y1="11" x2="68" y2="99" stroke="#f5820d" stroke-width="1" opacity="0.3" stroke-dasharray="3,2"/>
+          <rect x="72" y="16" width="136" height="78" rx="3" fill="#050510" stroke="#4fc3f7" stroke-width="1.2"/>
+          <rect x="152" y="8" width="38" height="4" rx="2" fill="#f5820d" opacity="0.55"/>
+          <rect x="215" y="36" width="4" height="26" rx="2" fill="#f5820d" opacity="0.55"/>
+          <rect x="10" y="99" width="18" height="3" rx="1.5" fill="none" stroke="#f5820d" stroke-width="1" opacity="0.4"/>
+          <!-- Battery -->
+          <rect x="193" y="18" width="12" height="7" rx="1" fill="none" stroke="#888" stroke-width="0.8"/>
+          <rect x="205" y="20.5" width="1.5" height="2" fill="#888"/>
+          <rect x="194" y="19" width="7" height="5" rx="0.5" fill="#4fc3f7" opacity="0.7"/>
+          <!-- Label -->
+          <text x="75" y="28" font-family="monospace" font-size="7.5" fill="#ffee58">Enter PIN:</text>
+          <!-- Digit box 1 (active) -->
+          <rect x="76" y="33" width="18" height="24" rx="2" fill="#1a0000" stroke="#ef5350" stroke-width="1.8"/>
+          <!-- Digit boxes 2-4 -->
+          <rect x="100" y="33" width="18" height="24" rx="2" fill="#0a0a0a" stroke="#444" stroke-width="1"/>
+          <rect x="124" y="33" width="18" height="24" rx="2" fill="#0a0a0a" stroke="#444" stroke-width="1"/>
+          <rect x="148" y="33" width="18" height="24" rx="2" fill="#0a0a0a" stroke="#444" stroke-width="1"/>
+          <!-- Digits -->
+          <text x="85" y="51" font-family="monospace" font-weight="700" font-size="17" fill="#ef5350" text-anchor="middle">0</text>
+          <text x="109" y="51" font-family="monospace" font-weight="700" font-size="17" fill="white" text-anchor="middle">0</text>
+          <text x="133" y="51" font-family="monospace" font-weight="700" font-size="17" fill="white" text-anchor="middle">0</text>
+          <text x="157" y="51" font-family="monospace" font-weight="700" font-size="17" fill="white" text-anchor="middle">0</text>
+          <!-- Hint -->
+          <text x="75" y="87" font-family="monospace" font-size="6" fill="#444">[A]cursor  [B]+  [A~]ok</text>
+        </svg>
+        <div class="photo-caption">3. Enter your 4-digit PIN<br>to decrypt credentials</div>
+      </div>
+      <div class="photo-frame">
+        <svg viewBox="0 0 220 115" xmlns="http://www.w3.org/2000/svg" width="100%" style="display:block;background:#0a0a0a;">
+          <rect x="2" y="10" width="214" height="90" rx="13" fill="#111" stroke="#f5820d" stroke-width="1.8"/>
+          <rect x="2" y="10" width="66" height="90" rx="13" fill="#1a0900"/>
+          <rect x="37" y="10" width="31" height="90" fill="#1a0900"/>
+          <text x="36" y="62" font-family="Arial,sans-serif" font-weight="900" font-size="19" fill="#f5820d" text-anchor="middle">M5</text>
+          <line x1="68" y1="11" x2="68" y2="99" stroke="#f5820d" stroke-width="1" opacity="0.3" stroke-dasharray="3,2"/>
+          <rect x="72" y="16" width="136" height="78" rx="3" fill="#050510" stroke="#4fc3f7" stroke-width="1.2"/>
+          <rect x="152" y="8" width="38" height="4" rx="2" fill="#f5820d" opacity="0.55"/>
+          <rect x="215" y="36" width="4" height="26" rx="2" fill="#f5820d" opacity="0.55"/>
+          <rect x="10" y="99" width="18" height="3" rx="1.5" fill="none" stroke="#f5820d" stroke-width="1" opacity="0.4"/>
+          <!-- Mode selector: box around U›P -->
+          <rect x="142" y="17" width="23" height="12" rx="1.5" fill="none" stroke="#ef5350" stroke-width="1.2"/>
+          <text x="153" y="26" font-family="monospace" font-size="7" fill="#ef5350" text-anchor="middle">U&#x203A;P</text>
+          <text x="171" y="26" font-family="monospace" font-size="7" fill="#ef5350" text-anchor="middle">U</text>
+          <text x="184" y="26" font-family="monospace" font-size="7" fill="#ef5350" text-anchor="middle">P</text>
+          <!-- Battery -->
+          <rect x="193" y="18" width="12" height="7" rx="1" fill="none" stroke="#888" stroke-width="0.8"/>
+          <rect x="205" y="20.5" width="1.5" height="2" fill="#888"/>
+          <rect x="194" y="19" width="7" height="5" rx="0.5" fill="#66bb6a" opacity="0.6"/>
+          <!-- Account index -->
+          <text x="76" y="44" font-family="monospace" font-weight="700" font-size="20" fill="#4fc3f7">01</text>
+          <!-- Arrow -->
+          <text x="74" y="62" font-family="monospace" font-size="12" fill="white">&#x203A;</text>
+          <!-- Account name -->
+          <text x="77" y="81" font-family="monospace" font-weight="600" font-size="12" fill="white">Account 2</text>
+        </svg>
+        <div class="photo-caption">4. Pick account &amp; send<br>username + password</div>
+      </div>
+
+      <!-- WiFi Admin -->
+      <div class="photo-frame">
+        <svg viewBox="0 0 220 115" xmlns="http://www.w3.org/2000/svg" width="100%" style="display:block;background:#0a0a0a;">
+          <rect x="2" y="10" width="214" height="90" rx="13" fill="#111" stroke="#f5820d" stroke-width="1.8"/>
+          <rect x="2" y="10" width="66" height="90" rx="13" fill="#1a0900"/>
+          <rect x="37" y="10" width="31" height="90" fill="#1a0900"/>
+          <text x="36" y="62" font-family="Arial,sans-serif" font-weight="900" font-size="19" fill="#f5820d" text-anchor="middle">M5</text>
+          <line x1="68" y1="11" x2="68" y2="99" stroke="#f5820d" stroke-width="1" opacity="0.3" stroke-dasharray="3,2"/>
+          <rect x="72" y="16" width="136" height="78" rx="3" fill="#050510" stroke="#4fc3f7" stroke-width="1.2"/>
+          <rect x="152" y="8" width="38" height="4" rx="2" fill="#f5820d" opacity="0.55"/>
+          <rect x="215" y="36" width="4" height="26" rx="2" fill="#f5820d" opacity="0.55"/>
+          <rect x="10" y="99" width="18" height="3" rx="1.5" fill="none" stroke="#f5820d" stroke-width="1" opacity="0.4"/>
+          <rect x="193" y="18" width="12" height="7" rx="1" fill="none" stroke="#888" stroke-width="0.8"/>
+          <rect x="205" y="20.5" width="1.5" height="2" fill="#888"/>
+          <rect x="194" y="19" width="8" height="5" rx="0.5" fill="#66bb6a" opacity="0.6"/>
+          <path d="M178,27 Q178,19 184,19 Q190,19 190,27" fill="none" stroke="#4fc3f7" stroke-width="1.3" opacity="0.9"/>
+          <path d="M180,27 Q180,22 184,22 Q188,22 188,27" fill="none" stroke="#4fc3f7" stroke-width="1" opacity="0.65"/>
+          <circle cx="184" cy="27" r="1.5" fill="#4fc3f7" opacity="0.9"/>
+          <text x="75" y="30" font-family="monospace" font-weight="700" font-size="12" fill="#ffee58">WiFi Admin</text>
+          <text x="75" y="41" font-family="monospace" font-size="6.8" fill="white">SSID: ESPWV32-Admin</text>
+          <text x="75" y="50" font-family="monospace" font-size="6.8" fill="white">IP:   192.168.4.1</text>
+          <text x="75" y="59" font-family="monospace" font-size="6.8" fill="white">Pass:</text>
+          <text x="75" y="72" font-family="monospace" font-weight="600" font-size="10" fill="white">xK9mPq3w</text>
+          <text x="75" y="85" font-family="monospace" font-size="5.8" fill="#444">[A] Back  [A~~] Serial</text>
+        </svg>
+        <div class="photo-caption">5. Manage accounts<br>via WiFi web UI</div>
+      </div>
+
+      <!-- Serial Admin -->
+      <div class="photo-frame">
+        <svg viewBox="0 0 220 115" xmlns="http://www.w3.org/2000/svg" width="100%" style="display:block;background:#0a0a0a;">
+          <rect x="2" y="10" width="214" height="90" rx="13" fill="#111" stroke="#f5820d" stroke-width="1.8"/>
+          <rect x="2" y="10" width="66" height="90" rx="13" fill="#1a0900"/>
+          <rect x="37" y="10" width="31" height="90" fill="#1a0900"/>
+          <text x="36" y="62" font-family="Arial,sans-serif" font-weight="900" font-size="19" fill="#f5820d" text-anchor="middle">M5</text>
+          <line x1="68" y1="11" x2="68" y2="99" stroke="#f5820d" stroke-width="1" opacity="0.3" stroke-dasharray="3,2"/>
+          <rect x="72" y="16" width="136" height="78" rx="3" fill="#050510" stroke="#4fc3f7" stroke-width="1.2"/>
+          <rect x="152" y="8" width="38" height="4" rx="2" fill="#f5820d" opacity="0.55"/>
+          <rect x="215" y="36" width="4" height="26" rx="2" fill="#f5820d" opacity="0.55"/>
+          <rect x="10" y="99" width="18" height="3" rx="1.5" fill="none" stroke="#f5820d" stroke-width="1" opacity="0.4"/>
+          <rect x="193" y="18" width="12" height="7" rx="1" fill="none" stroke="#888" stroke-width="0.8"/>
+          <rect x="205" y="20.5" width="1.5" height="2" fill="#888"/>
+          <rect x="194" y="19" width="8" height="5" rx="0.5" fill="#66bb6a" opacity="0.6"/>
+          <line x1="183" y1="18" x2="183" y2="26" stroke="#4fc3f7" stroke-width="1.5" opacity="0.8"/>
+          <line x1="180" y1="20" x2="186" y2="20" stroke="#4fc3f7" stroke-width="1" opacity="0.8"/>
+          <line x1="180" y1="20" x2="180" y2="23" stroke="#4fc3f7" stroke-width="1" opacity="0.8"/>
+          <line x1="186" y1="20" x2="186" y2="23" stroke="#4fc3f7" stroke-width="1" opacity="0.8"/>
+          <circle cx="183" cy="27" r="1.5" fill="#4fc3f7" opacity="0.9"/>
+          <text x="75" y="30" font-family="monospace" font-weight="700" font-size="12" fill="#4fc3f7">Serial Admin</text>
+          <text x="75" y="41" font-family="monospace" font-size="6.5" fill="white">USB serial: 115200 8N1</text>
+          <text x="75" y="50" font-family="monospace" font-size="6.5" fill="white">Windows: COMx</text>
+          <text x="75" y="59" font-family="monospace" font-size="6.5" fill="white">macOS: /dev/cu.usb*</text>
+          <text x="75" y="68" font-family="monospace" font-size="6.5" fill="white">Linux: /dev/ttyUSB0</text>
+          <text x="75" y="77" font-family="monospace" font-size="6.5" fill="white">Type HELP in terminal</text>
+          <text x="75" y="87" font-family="monospace" font-size="5.8" fill="#444">[A] Back to Accounts</text>
+        </svg>
+        <div class="photo-caption">6. Or manage via<br>USB serial terminal</div>
+      </div>
+
+    </div>
+    <p style="color:var(--muted); font-size:0.9rem;">
+      No software installed on the host. No drivers. Just a Bluetooth keyboard.
+    </p>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 10 — SECURITY ARCHITECTURE
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-10">
+    <div class="eyebrow">Chapter 5 — Security</div>
+    <h2>Security by design</h2>
+    <div class="divider"></div>
+    <div class="timeline" style="margin: 0 auto;">
+      <div class="timeline-item">
+        <div class="timeline-dot">🔐</div>
+        <div class="timeline-body">
+          <h3>BLE Secure Pairing (MITM-protected)</h3>
+          <p>Uses SC+MITM bonding with a random passkey displayed on the device —
+             the host never chooses the PIN.</p>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot">🔑</div>
+        <div class="timeline-body">
+          <h3>AES-256-CBC Credential Encryption</h3>
+          <p>Every credential slot is encrypted at rest. Nothing is readable
+             without the correct PIN — even with direct EEPROM access.</p>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot">🧂</div>
+        <div class="timeline-body">
+          <h3>PBKDF2-HMAC-SHA256 PIN Verification</h3>
+          <p>The PIN is never stored. A salted, 10,000-iteration key derivation
+             function verifies it — brute force is computationally costly.</p>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot">📵</div>
+        <div class="timeline-body">
+          <h3>Zero Cloud Surface</h3>
+          <p>No sync, no server, no account. Data lives only on your device.
+             The WiFi interface is local-only and AP-isolated.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 11 — TECHNICAL DEEP DIVE
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-11">
+    <div class="eyebrow">Chapter 5 — Under the Hood</div>
+    <h2>How it actually works</h2>
+    <div class="divider"></div>
+    <div class="two-col" style="align-items:flex-start;">
+      <div class="col" style="text-align:left;">
+        <h3 class="blue" style="margin-bottom:12px;">BLE HID Keyboard</h3>
+        <p style="margin-bottom:20px;">
+          The device presents itself as a standard Bluetooth keyboard
+          using the HID report descriptor — compatible with every OS
+          out of the box. No drivers, no apps.
+        </p>
+        <h3 class="orange" style="margin-bottom:12px;">Screen state machine</h3>
+        <p>
+          Six screen types (<code>Start → PIN → Lock → AccountSelection → WifiAdmin → SerialAdmin</code>)
+          managed by a clean transition router in the main loop.
+        </p>
+      </div>
+      <div class="col" style="text-align:left;">
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-dot" style="background:#ef5350;"></span>
+            <span class="code-dot" style="background:#f5820d;"></span>
+            <span class="code-dot" style="background:#66bb6a;"></span>
+            <span class="code-filename">AccountSelectionScreen.cpp &nbsp;·&nbsp; Storage.cpp</span>
+          </div>
+          <div class="code-body">
+
+            <span class="code-section-label">BLE HID — send credentials</span>
+            <div class="code-line"><span class="ln">1</span><span class="obj">_keyboard</span><span class="op">-&gt;</span><span class="fn">print</span><span class="op">(</span><span class="obj">_currentAccount</span><span class="op">.</span><span class="obj">username</span><span class="op">);</span></div>
+            <div class="code-line"><span class="ln">2</span><span class="obj">_keyboard</span><span class="op">-&gt;</span><span class="fn">print</span><span class="op">(</span><span class="str">"\t"</span><span class="op">);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="comment">// Tab to password field</span></div>
+            <div class="code-line"><span class="ln">3</span><span class="obj">_keyboard</span><span class="op">-&gt;</span><span class="fn">println</span><span class="op">(</span><span class="obj">_currentAccount</span><span class="op">.</span><span class="obj">password</span><span class="op">);</span></div>
+
+            <div class="code-sep"></div>
+
+            <span class="code-section-label">AES-256-CBC — encrypt before EEPROM write</span>
+            <div class="code-line"><span class="ln">1</span><span class="type">mbedtls_aes_context</span><span class="op"> ctx;</span></div>
+            <div class="code-line"><span class="ln">2</span><span class="fn">mbedtls_aes_setkey_enc</span><span class="op">(&amp;</span><span class="obj">ctx</span><span class="op">, </span><span class="obj">key</span><span class="op">, </span><span class="num">256</span><span class="op">);</span></div>
+            <div class="code-line"><span class="ln">3</span><span class="fn">mbedtls_aes_crypt_cbc</span><span class="op">(</span></div>
+            <div class="code-line"><span class="ln">4</span><span class="op">&nbsp;&nbsp;&amp;</span><span class="obj">ctx</span><span class="op">, </span><span class="mac">MBEDTLS_AES_ENCRYPT</span><span class="op">,</span></div>
+            <div class="code-line"><span class="ln">5</span><span class="op">&nbsp;&nbsp;</span><span class="fn">sizeof</span><span class="op">(</span><span class="obj">credentials</span><span class="op">), </span><span class="obj">iv</span><span class="op">,</span></div>
+            <div class="code-line"><span class="ln">6</span><span class="op">&nbsp;&nbsp;(</span><span class="type">uint8_t</span><span class="op">*) &amp;</span><span class="obj">plain</span><span class="op">,</span></div>
+            <div class="code-line"><span class="ln">7</span><span class="op">&nbsp;&nbsp;(</span><span class="type">uint8_t</span><span class="op">*) &amp;</span><span class="obj">encrypted</span></div>
+            <div class="code-line"><span class="ln">8</span><span class="op">);</span></div>
+            <div class="code-line"><span class="ln">9</span><span class="fn">mbedtls_aes_free</span><span class="op">(&amp;</span><span class="obj">ctx</span><span class="op">);</span></div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 11e — IMPLEMENTATION CHALLENGES
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-11e">
+    <div class="eyebrow">Chapter 5 — Lessons Learned</div>
+    <h2>It wasn't easy</h2>
+    <div class="divider"></div>
+    <div class="cards" style="max-width:1100px; align-items:stretch;">
+
+      <div class="card" style="max-width:320px; text-align:left; border-color:#333;">
+        <span class="icon">📚</span>
+        <h3 style="color:var(--blue);">The BLE spec is enormous</h3>
+        <p style="margin-bottom:10px;">
+          The Bluetooth core spec runs to thousands of pages.
+          On top of that: GAP, GATT, SMP, and the HID-over-GATT profile —
+          each its own document.
+        </p>
+        <p style="margin-bottom:10px;">
+          Finding the exact combination of <code>ESP_LE_AUTH_REQ_*</code>
+          and <code>ESP_IO_CAP_*</code> flags that actually worked took
+          many failed pairing attempts.
+        </p>
+        <p>
+          The ESP32 Arduino BLE library also had breaking API changes
+          between major versions — code that worked one week silently
+          broke the next.
+        </p>
+      </div>
+
+      <div class="card" style="max-width:320px; text-align:left; border-color:#333;">
+        <span class="icon">🧭</span>
+        <h3 style="color:var(--orange);">Started before AI</h3>
+        <p style="margin-bottom:10px;">
+          This project began before tools like ChatGPT or Copilot were
+          available. Progress was pieced together from:
+        </p>
+        <ul style="list-style:none; padding:0; margin:0;">
+          <li style="padding:4px 0; border-bottom:1px solid #222; font-size:0.9rem; color:#aaa;">📄 Bluetooth spec PDFs</li>
+          <li style="padding:4px 0; border-bottom:1px solid #222; font-size:0.9rem; color:#aaa;">🔍 Stack Overflow fragments</li>
+          <li style="padding:4px 0; border-bottom:1px solid #222; font-size:0.9rem; color:#aaa;">🐛 ESP32 Arduino GitHub issues</li>
+          <li style="padding:4px 0; border-bottom:1px solid #222; font-size:0.9rem; color:#aaa;">💬 Arduino forum posts</li>
+          <li style="padding:4px 0; font-size:0.9rem; color:#aaa;">📦 T-vK's ESP32-BLE-Keyboard library as a starting point</li>
+        </ul>
+        <p style="margin-top:10px; font-size:0.85rem; color:var(--muted);">
+          Each session was a slow excavation of tribal knowledge.
+        </p>
+      </div>
+
+      <div class="card" style="max-width:320px; text-align:left; border-color:#333;">
+        <span class="icon">💀</span>
+        <h3 style="color:var(--red);">Debugging in the dark</h3>
+        <p style="margin-bottom:10px;">
+          When the device runs out of heap — for instance from
+          BLE and WiFi running simultaneously without releasing
+          Classic BT memory — it doesn't throw an error.
+          It just <strong class="red">browns out</strong> and resets silently.
+        </p>
+        <p style="margin-bottom:10px;">
+          The only window into the device is the
+          <strong class="blue">serial monitor</strong> at 115200 baud
+          over USB. No stack traces. No breakpoints.
+          <code>Serial.println()</code> is your debugger.
+        </p>
+        <p>
+          Fixes like calling <code>esp_bt_controller_mem_release()</code>
+          before <code>BLEDevice::init()</code> were found only after
+          hours of brown-out loops with no obvious cause.
+        </p>
+      </div>
+
+    </div>
+
+    <blockquote style="max-width:750px; margin-top:28px;">
+      <p>"The device doesn't tell you what's wrong — it just stops."</p>
+    </blockquote>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 11c — BLE PAIRING & MITM
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-11c" style="padding:40px 70px;">
+    <div class="eyebrow">Chapter 5 — Bluetooth Deep Dive</div>
+    <h2>BLE pairing &amp; MITM protection</h2>
+    <div class="divider"></div>
+    <div class="two-col" style="align-items:flex-start; gap:48px; max-width:1100px;">
+
+      <!-- Sequence diagram -->
+      <div class="col" style="flex:0 0 auto;">
+        <svg viewBox="0 0 380 310" xmlns="http://www.w3.org/2000/svg"
+             style="width:380px; max-width:100%;">
+          <!-- Actor labels -->
+          <text x="55"  y="16" font-family="monospace" font-size="10" fill="#888" text-anchor="middle">Host</text>
+          <text x="190" y="16" font-family="monospace" font-size="10" fill="#f5820d" text-anchor="middle">ESPWV32</text>
+          <text x="325" y="16" font-family="monospace" font-size="10" fill="#66bb6a" text-anchor="middle">User</text>
+
+          <!-- Actor lifelines -->
+          <line x1="55"  y1="22" x2="55"  y2="300" stroke="#333" stroke-width="1" stroke-dasharray="4,3"/>
+          <line x1="190" y1="22" x2="190" y2="300" stroke="#f5820d" stroke-width="1" stroke-dasharray="4,2" opacity="0.5"/>
+          <line x1="325" y1="22" x2="325" y2="300" stroke="#333" stroke-width="1" stroke-dasharray="4,3"/>
+
+          <!-- Actor boxes -->
+          <rect x="18"  y="18" width="74" height="22" rx="4" fill="#1a1a1a" stroke="#444" stroke-width="1"/>
+          <text x="55"  y="33" font-family="monospace" font-size="9" fill="#ccc" text-anchor="middle">💻 PC / Phone</text>
+          <rect x="153" y="18" width="74" height="22" rx="4" fill="#1a0900" stroke="#f5820d" stroke-width="1.2"/>
+          <text x="190" y="33" font-family="monospace" font-size="9" fill="#f5820d" text-anchor="middle">🔒 ESPWV32</text>
+          <rect x="288" y="18" width="74" height="22" rx="4" fill="#1a1a1a" stroke="#444" stroke-width="1"/>
+          <text x="325" y="33" font-family="monospace" font-size="9" fill="#ccc" text-anchor="middle">👤 You</text>
+
+          <!-- Step 1: Host → ESPWV32: initiate pairing -->
+          <line x1="55" y1="60" x2="185" y2="60" stroke="#4fc3f7" stroke-width="1.3" marker-end="url(#fwd)"/>
+          <text x="120" y="56" font-family="monospace" font-size="8" fill="#4fc3f7" text-anchor="middle">initiate pairing</text>
+
+          <!-- Step 2: ECDH exchange (double arrow, labeled) -->
+          <line x1="55" y1="86" x2="185" y2="86" stroke="#888" stroke-width="1" marker-end="url(#bck)"/>
+          <line x1="185" y1="92" x2="55" y2="92" stroke="#888" stroke-width="1" marker-end="url(#bck)"/>
+          <rect x="68" y="76" width="104" height="24" rx="3" fill="#1a1a1a" stroke="#333" stroke-width="0.8"/>
+          <text x="120" y="87" font-family="monospace" font-size="7.5" fill="#888" text-anchor="middle">ECDH P-256</text>
+          <text x="120" y="96" font-family="monospace" font-size="7.5" fill="#888" text-anchor="middle">key exchange</text>
+
+          <!-- Step 3: ESPWV32 → User: display passkey -->
+          <line x1="195" y1="120" x2="320" y2="120" stroke="#f5820d" stroke-width="1.3" marker-end="url(#fwd)"/>
+          <text x="258" y="116" font-family="monospace" font-size="8" fill="#f5820d" text-anchor="middle">display passkey</text>
+          <!-- Passkey box on device -->
+          <rect x="156" y="128" width="68" height="18" rx="3" fill="#0a0a1a" stroke="#4fc3f7" stroke-width="1"/>
+          <text x="190" y="140" font-family="monospace" font-weight="700" font-size="9" fill="white" text-anchor="middle">PIN: 751137</text>
+
+          <!-- Step 4: User → Host: enter passkey -->
+          <line x1="320" y1="158" x2="60" y2="158" stroke="#66bb6a" stroke-width="1.3" marker-end="url(#bck)"/>
+          <text x="190" y="154" font-family="monospace" font-size="8" fill="#66bb6a" text-anchor="middle">type passkey on host</text>
+
+          <!-- Step 5: Both verify, LTK derived -->
+          <rect x="100" y="170" width="180" height="20" rx="3" fill="#1a1400" stroke="#f5820d" stroke-width="0.8" opacity="0.8"/>
+          <text x="190" y="183" font-family="monospace" font-size="8" fill="#f5820d" text-anchor="middle">both sides derive LTK via ECDH</text>
+
+          <!-- Step 6: Encrypted connection -->
+          <line x1="55" y1="204" x2="185" y2="204" stroke="#66bb6a" stroke-width="1.5" marker-end="url(#fwd)" stroke-dasharray="none"/>
+          <line x1="185" y1="210" x2="55" y2="210" stroke="#66bb6a" stroke-width="1.5" marker-end="url(#bck)"/>
+          <text x="120" y="222" font-family="monospace" font-size="8" fill="#66bb6a" text-anchor="middle">✓ encrypted channel</text>
+
+          <!-- Step 7: Bond stored -->
+          <rect x="140" y="232" width="100" height="16" rx="3" fill="#001a00" stroke="#66bb6a" stroke-width="0.8"/>
+          <text x="190" y="243" font-family="monospace" font-size="7.5" fill="#66bb6a" text-anchor="middle">LTK bonded (stored)</text>
+
+          <!-- MITM blocker: attacker trying to intercept -->
+          <text x="190" y="272" font-family="monospace" font-size="7.5" fill="#ef5350" text-anchor="middle" opacity="0.8">⛔ MITM blocked: attacker cannot</text>
+          <text x="190" y="282" font-family="monospace" font-size="7.5" fill="#ef5350" text-anchor="middle" opacity="0.8">read screen without physical access</text>
+        </svg>
+      </div>
+
+      <!-- Explanation -->
+      <div class="col" style="text-align:left;">
+        <h3 class="blue" style="margin-bottom:10px;">LE Secure Connections (SC)</h3>
+        <p style="margin-bottom:16px;">
+          ESPWV32 uses <strong>Bluetooth LE Secure Connections</strong> with
+          <code>SC_MITM_BOND</code> — the strongest BLE pairing mode.
+          The key agreement runs over <strong class="orange">ECDH P-256</strong>,
+          meaning the session key is mathematically unrecoverable even if
+          all BLE traffic is recorded.
+        </p>
+
+        <h3 class="orange" style="margin-bottom:10px;">Why MITM is blocked</h3>
+        <p style="margin-bottom:16px;">
+          With <code>ESP_IO_CAP_OUT</code> (display-only), ESPWV32
+          shows a random passkey on its physical screen.
+          An attacker who intercepts the BLE packets still needs to
+          <em>read that screen</em> — which requires being physically
+          present at the device. Remote interception becomes impossible.
+        </p>
+
+        <h3 class="green" style="margin-bottom:10px;">Bonding</h3>
+        <p>
+          After the first pairing the LTK is stored on both sides.
+          Future connections re-use the stored key — no passkey re-entry —
+          but the encryption is identical. Unpair to revoke.
+        </p>
+
+        <div class="pill-row" style="justify-content:flex-start; margin-top:18px;">
+          <span class="pill blue">ECDH P-256</span>
+          <span class="pill orange">ESP_IO_CAP_OUT</span>
+          <span class="pill green">LTK bonding</span>
+          <span class="pill red">MITM-proof</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 11d — HID REPORT DESCRIPTOR
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-11d" style="padding:40px 70px;">
+    <div class="eyebrow">Chapter 5 — HID Deep Dive</div>
+    <h2>How the HID report descriptor works</h2>
+    <div class="divider"></div>
+    <div class="two-col" style="align-items:flex-start; gap:48px; max-width:1100px;">
+
+      <!-- Byte map diagrams -->
+      <div class="col" style="text-align:left;">
+
+        <!-- Report 1: Keyboard -->
+        <p style="font-size:0.8rem; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; margin-bottom:8px;">Report 1 — Keyboard (8 bytes)</p>
+        <svg viewBox="0 0 420 110" xmlns="http://www.w3.org/2000/svg" style="width:100%; max-width:420px; display:block; margin-bottom:20px;">
+          <!-- Byte 0: Modifier -->
+          <rect x="0"   y="0" width="52" height="36" rx="3" fill="#1a0a00" stroke="#f5820d" stroke-width="1.5"/>
+          <text x="26"  y="14" font-family="monospace" font-size="7.5" fill="#888" text-anchor="middle">byte 0</text>
+          <text x="26"  y="27" font-family="monospace" font-size="8.5" fill="#f5820d" text-anchor="middle" font-weight="700">MOD</text>
+          <!-- Modifier bit breakdown -->
+          <text x="0"   y="52" font-family="monospace" font-size="6.5" fill="#555">LCtrl LShft LAlt LMeta RCtrl RShft RAlt RMeta</text>
+          <line x1="26" y1="36" x2="26" y2="44" stroke="#f5820d" stroke-width="0.8" opacity="0.5"/>
+          <!-- Byte 1: Reserved -->
+          <rect x="58"  y="0" width="52" height="36" rx="3" fill="#111" stroke="#333" stroke-width="1"/>
+          <text x="84"  y="14" font-family="monospace" font-size="7.5" fill="#555" text-anchor="middle">byte 1</text>
+          <text x="84"  y="27" font-family="monospace" font-size="8.5" fill="#555" text-anchor="middle" font-weight="700">0x00</text>
+          <text x="84"  y="52" font-family="monospace" font-size="6.5" fill="#444" text-anchor="middle">reserved</text>
+          <!-- Bytes 2–7: Keycodes -->
+          <rect x="116" y="0" width="52" height="36" rx="3" fill="#00101a" stroke="#4fc3f7" stroke-width="1.5"/>
+          <rect x="174" y="0" width="52" height="36" rx="3" fill="#00101a" stroke="#4fc3f7" stroke-width="1.5"/>
+          <rect x="232" y="0" width="52" height="36" rx="3" fill="#00101a" stroke="#4fc3f7" stroke-width="1.5"/>
+          <rect x="290" y="0" width="52" height="36" rx="3" fill="#00101a" stroke="#4fc3f7" stroke-width="1.5"/>
+          <rect x="348" y="0" width="52" height="36" rx="3" fill="#00101a" stroke="#4fc3f7" stroke-width="1.5"/>
+          <rect x="406" y="0" width="52" height="36" rx="3" fill="#00101a" stroke="#4fc3f7" stroke-width="1.5"/>
+          <text x="142" y="14" font-family="monospace" font-size="7.5" fill="#555" text-anchor="middle">byte 2</text>
+          <text x="200" y="14" font-family="monospace" font-size="7.5" fill="#555" text-anchor="middle">byte 3</text>
+          <text x="258" y="14" font-family="monospace" font-size="7.5" fill="#555" text-anchor="middle">byte 4</text>
+          <text x="316" y="14" font-family="monospace" font-size="7.5" fill="#555" text-anchor="middle">byte 5</text>
+          <text x="374" y="14" font-family="monospace" font-size="7.5" fill="#555" text-anchor="middle">byte 6</text>
+          <text x="432" y="14" font-family="monospace" font-size="7.5" fill="#555" text-anchor="middle">byte 7</text>
+          <text x="142" y="27" font-family="monospace" font-size="8.5" fill="#4fc3f7" text-anchor="middle" font-weight="700">KEY</text>
+          <text x="200" y="27" font-family="monospace" font-size="8.5" fill="#4fc3f7" text-anchor="middle" font-weight="700">KEY</text>
+          <text x="258" y="27" font-family="monospace" font-size="8.5" fill="#4fc3f7" text-anchor="middle" font-weight="700">KEY</text>
+          <text x="316" y="27" font-family="monospace" font-size="8.5" fill="#4fc3f7" text-anchor="middle" font-weight="700">KEY</text>
+          <text x="374" y="27" font-family="monospace" font-size="8.5" fill="#4fc3f7" text-anchor="middle" font-weight="700">KEY</text>
+          <text x="432" y="27" font-family="monospace" font-size="8.5" fill="#4fc3f7" text-anchor="middle" font-weight="700">KEY</text>
+          <!-- Brace & label -->
+          <line x1="116" y1="44" x2="458" y2="44" stroke="#4fc3f7" stroke-width="0.8" opacity="0.5"/>
+          <line x1="116" y1="44" x2="116" y2="48" stroke="#4fc3f7" stroke-width="0.8" opacity="0.5"/>
+          <line x1="458" y1="44" x2="458" y2="48" stroke="#4fc3f7" stroke-width="0.8" opacity="0.5"/>
+          <text x="287" y="58" font-family="monospace" font-size="6.5" fill="#4fc3f7" text-anchor="middle">6 simultaneous keycodes (6KRO)</text>
+          <!-- OS note -->
+          <text x="210" y="80" font-family="monospace" font-size="7" fill="#555" text-anchor="middle">The descriptor maps each byte so the OS decodes</text>
+          <text x="210" y="90" font-family="monospace" font-size="7" fill="#555" text-anchor="middle">raw HID packets into keyboard events automatically.</text>
+        </svg>
+
+        <!-- Report 2: Media keys -->
+        <p style="font-size:0.8rem; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; margin-bottom:8px;">Report 2 — Media Keys (2 bytes / 16 bits)</p>
+        <svg viewBox="0 0 420 68" xmlns="http://www.w3.org/2000/svg" style="width:100%; max-width:420px; display:block;">
+          <!-- 16 single-bit boxes -->
+          <rect x="0"   y="0" width="26" height="28" rx="2" fill="#1a001a" stroke="#a78bfa" stroke-width="1.2"/>
+          <rect x="26"  y="0" width="26" height="28" rx="2" fill="#1a001a" stroke="#a78bfa" stroke-width="1.2"/>
+          <rect x="52"  y="0" width="26" height="28" rx="2" fill="#1a001a" stroke="#a78bfa" stroke-width="1.2"/>
+          <rect x="78"  y="0" width="26" height="28" rx="2" fill="#1a001a" stroke="#a78bfa" stroke-width="1.2"/>
+          <rect x="104" y="0" width="26" height="28" rx="2" fill="#1a001a" stroke="#a78bfa" stroke-width="1.2"/>
+          <rect x="130" y="0" width="26" height="28" rx="2" fill="#1a001a" stroke="#a78bfa" stroke-width="1.2"/>
+          <rect x="156" y="0" width="26" height="28" rx="2" fill="#1a001a" stroke="#a78bfa" stroke-width="1.2"/>
+          <rect x="182" y="0" width="26" height="28" rx="2" fill="#1a001a" stroke="#a78bfa" stroke-width="1.2"/>
+          <rect x="208" y="0" width="26" height="28" rx="2" fill="#1a001a" stroke="#a78bfa" stroke-width="1.2"/>
+          <rect x="234" y="0" width="26" height="28" rx="2" fill="#1a001a" stroke="#a78bfa" stroke-width="1.2"/>
+          <rect x="260" y="0" width="26" height="28" rx="2" fill="#1a001a" stroke="#a78bfa" stroke-width="1.2"/>
+          <rect x="286" y="0" width="26" height="28" rx="2" fill="#1a001a" stroke="#a78bfa" stroke-width="1.2"/>
+          <rect x="312" y="0" width="26" height="28" rx="2" fill="#1a001a" stroke="#a78bfa" stroke-width="1.2"/>
+          <rect x="338" y="0" width="26" height="28" rx="2" fill="#1a001a" stroke="#a78bfa" stroke-width="1.2"/>
+          <rect x="364" y="0" width="26" height="28" rx="2" fill="#1a001a" stroke="#a78bfa" stroke-width="1.2"/>
+          <rect x="390" y="0" width="26" height="28" rx="2" fill="#1a001a" stroke="#a78bfa" stroke-width="1.2"/>
+          <!-- Bit labels -->
+          <text x="13"  y="17" font-family="monospace" font-size="6.5" fill="#a78bfa" text-anchor="middle">⏭</text>
+          <text x="39"  y="17" font-family="monospace" font-size="6.5" fill="#a78bfa" text-anchor="middle">⏮</text>
+          <text x="65"  y="17" font-family="monospace" font-size="6.5" fill="#a78bfa" text-anchor="middle">⏹</text>
+          <text x="91"  y="17" font-family="monospace" font-size="6.5" fill="#a78bfa" text-anchor="middle">⏯</text>
+          <text x="117" y="17" font-family="monospace" font-size="6.5" fill="#a78bfa" text-anchor="middle">🔇</text>
+          <text x="143" y="17" font-family="monospace" font-size="6.5" fill="#a78bfa" text-anchor="middle">🔊</text>
+          <text x="169" y="17" font-family="monospace" font-size="6.5" fill="#a78bfa" text-anchor="middle">🔉</text>
+          <text x="195" y="17" font-family="monospace" font-size="6.5" fill="#a78bfa" text-anchor="middle">🏠</text>
+          <text x="221" y="17" font-family="monospace" font-size="6.5" fill="#a78bfa" text-anchor="middle">💻</text>
+          <text x="247" y="17" font-family="monospace" font-size="6.5" fill="#a78bfa" text-anchor="middle">🔢</text>
+          <text x="273" y="17" font-family="monospace" font-size="6.5" fill="#a78bfa" text-anchor="middle">★</text>
+          <text x="299" y="17" font-family="monospace" font-size="6.5" fill="#a78bfa" text-anchor="middle">🔍</text>
+          <text x="325" y="17" font-family="monospace" font-size="6.5" fill="#a78bfa" text-anchor="middle">🛑</text>
+          <text x="351" y="17" font-family="monospace" font-size="6.5" fill="#a78bfa" text-anchor="middle">⬅</text>
+          <text x="377" y="17" font-family="monospace" font-size="6.5" fill="#a78bfa" text-anchor="middle">🎵</text>
+          <text x="403" y="17" font-family="monospace" font-size="6.5" fill="#a78bfa" text-anchor="middle">✉</text>
+          <!-- Bottom labels -->
+          <text x="13"  y="42" font-family="monospace" font-size="5.5" fill="#555" text-anchor="middle">Next</text>
+          <text x="39"  y="42" font-family="monospace" font-size="5.5" fill="#555" text-anchor="middle">Prev</text>
+          <text x="65"  y="42" font-family="monospace" font-size="5.5" fill="#555" text-anchor="middle">Stop</text>
+          <text x="91"  y="42" font-family="monospace" font-size="5.5" fill="#555" text-anchor="middle">Play</text>
+          <text x="117" y="42" font-family="monospace" font-size="5.5" fill="#555" text-anchor="middle">Mute</text>
+          <text x="143" y="42" font-family="monospace" font-size="5.5" fill="#555" text-anchor="middle">Vol+</text>
+          <text x="169" y="42" font-family="monospace" font-size="5.5" fill="#555" text-anchor="middle">Vol-</text>
+          <text x="195" y="42" font-family="monospace" font-size="5.5" fill="#555" text-anchor="middle">Home</text>
+          <text x="221" y="42" font-family="monospace" font-size="5.5" fill="#555" text-anchor="middle">My PC</text>
+          <text x="247" y="42" font-family="monospace" font-size="5.5" fill="#555" text-anchor="middle">Calc</text>
+          <text x="273" y="42" font-family="monospace" font-size="5.5" fill="#555" text-anchor="middle">Favs</text>
+          <text x="299" y="42" font-family="monospace" font-size="5.5" fill="#555" text-anchor="middle">Srch</text>
+          <text x="325" y="42" font-family="monospace" font-size="5.5" fill="#555" text-anchor="middle">Stop</text>
+          <text x="351" y="42" font-family="monospace" font-size="5.5" fill="#555" text-anchor="middle">Back</text>
+          <text x="377" y="42" font-family="monospace" font-size="5.5" fill="#555" text-anchor="middle">Media</text>
+          <text x="403" y="42" font-family="monospace" font-size="5.5" fill="#555" text-anchor="middle">Mail</text>
+        </svg>
+      </div>
+
+      <!-- Explanation -->
+      <div class="col" style="text-align:left;">
+        <h3 class="blue" style="margin-bottom:10px;">What is a report descriptor?</h3>
+        <p style="margin-bottom:14px;">
+          A HID report descriptor is a byte array sent to the host at connection time.
+          It tells the OS the <strong>exact binary layout</strong> of every packet
+          the device will ever send — field names, sizes, value ranges, and usage IDs.
+          The OS uses it to build the driver on the fly.
+          <strong class="green">No custom driver is ever needed.</strong>
+        </p>
+
+        <h3 class="orange" style="margin-bottom:10px;">Report 1 — Keyboard</h3>
+        <p style="margin-bottom:14px;">
+          8 bytes per report. Byte 0 carries 8 modifier-key bits
+          (Shift, Ctrl, Alt, Meta — left and right variants).
+          Bytes 2–7 each hold one USB HID keycode, allowing up to
+          <strong>6 simultaneous keypresses</strong> (6KRO).
+          ESPWV32 only ever fills byte 0 + bytes[0] — one key at a time —
+          exactly like a real keyboard.
+        </p>
+
+        <h3 style="color:#a78bfa; margin-bottom:10px;">Report 2 — Media / Consumer</h3>
+        <p style="margin-bottom:14px;">
+          16 individual bits, each mapped to a consumer control action
+          (volume, playback, browser navigation…).
+          Included for completeness — ESPWV32 does not currently use this report.
+        </p>
+
+        <div class="pill-row" style="justify-content:flex-start; margin-top:14px;">
+          <span class="pill blue">USB HID spec</span>
+          <span class="pill orange">6KRO</span>
+          <span class="pill green">zero drivers</span>
+          <span class="pill" style="color:#a78bfa; border-color:#a78bfa;">consumer ctrl</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 11b — SCREEN STATE MACHINE
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-11b" style="padding:40px 60px;">
+    <div class="eyebrow">Chapter 5 — Architecture</div>
+    <h2>Screen state machine</h2>
+    <div class="divider"></div>
+    <svg viewBox="0 0 820 400" xmlns="http://www.w3.org/2000/svg"
+         style="max-width:820px; width:100%; margin-top:8px; overflow:visible;">
+      <defs>
+        <marker id="fwd" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto">
+          <path d="M0,0 L0,7 L8,3.5 z" fill="#f5820d"/>
+        </marker>
+        <marker id="bck" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto">
+          <path d="M0,0 L0,7 L8,3.5 z" fill="#555"/>
+        </marker>
+      </defs>
+
+      <!-- ── Forward arrows ─────────────────────────────────────────── -->
+
+      <!-- START → PIN -->
+      <line x1="410" y1="46" x2="410" y2="91" stroke="#f5820d" stroke-width="1.5" marker-end="url(#fwd)"/>
+      <text x="416" y="73" font-family="monospace" font-size="8.5" fill="#888">BLE connects</text>
+
+      <!-- PIN → LOCK -->
+      <line x1="375" y1="124" x2="228" y2="182" stroke="#f5820d" stroke-width="1.5" marker-end="url(#fwd)"/>
+      <text x="264" y="151" font-family="monospace" font-size="8" fill="#888">pin configured</text>
+
+      <!-- PIN → SET_PIN -->
+      <line x1="445" y1="124" x2="592" y2="182" stroke="#f5820d" stroke-width="1.5" marker-end="url(#fwd)"/>
+      <text x="463" y="149" font-family="monospace" font-size="8" fill="#888">first time</text>
+
+      <!-- LOCK → ACCOUNT -->
+      <line x1="200" y1="214" x2="200" y2="284" stroke="#f5820d" stroke-width="1.5" marker-end="url(#fwd)"/>
+      <text x="206" y="253" font-family="monospace" font-size="8.5" fill="#888">PIN correct</text>
+
+      <!-- SET_PIN → ACCOUNT_SELECTION -->
+      <path d="M595,214 Q430,262 278,298" fill="none" stroke="#f5820d" stroke-width="1.5" marker-end="url(#fwd)"/>
+      <text x="468" y="248" font-family="monospace" font-size="8.5" fill="#888">PIN set</text>
+
+      <!-- ACCOUNT → WIFI_ADMIN (forward, slightly below center) -->
+      <line x1="275" y1="309" x2="542" y2="309" stroke="#f5820d" stroke-width="1.5" marker-end="url(#fwd)"/>
+      <text x="366" y="320" font-family="monospace" font-size="8.5" fill="#888">long [A]</text>
+
+      <!-- WIFI_ADMIN → SERIAL_ADMIN -->
+      <line x1="620" y1="319" x2="620" y2="365" stroke="#f5820d" stroke-width="1.5" marker-end="url(#fwd)"/>
+      <text x="626" y="346" font-family="monospace" font-size="8.5" fill="#888">long [A]</text>
+
+      <!-- ── Return arrows (dashed gray) ───────────────────────────── -->
+
+      <!-- WIFI_ADMIN → ACCOUNT (return, above) -->
+      <path d="M542,298 Q410,268 275,298" fill="none" stroke="#555" stroke-width="1.2"
+            stroke-dasharray="4,2" marker-end="url(#bck)"/>
+      <text x="374" y="274" font-family="monospace" font-size="8" fill="#555">[A] back / done</text>
+
+      <!-- SERIAL_ADMIN → ACCOUNT (diagonal return) -->
+      <path d="M542,382 Q390,358 275,314" fill="none" stroke="#555" stroke-width="1.2"
+            stroke-dasharray="4,2" marker-end="url(#bck)"/>
+      <text x="363" y="369" font-family="monospace" font-size="8" fill="#555">[A] back</text>
+
+      <!-- ACCOUNT → START (BLE disconnect, left curved) -->
+      <path d="M125,300 Q48,300 48,168 Q48,36 333,28" fill="none" stroke="#555" stroke-width="1.2"
+            stroke-dasharray="4,2" marker-end="url(#bck)"/>
+      <text x="18" y="172" font-family="monospace" font-size="8" fill="#555"
+            transform="rotate(-90,18,172)">BLE disconnect</text>
+
+      <!-- ── Nodes ──────────────────────────────────────────────────── -->
+
+      <!-- START -->
+      <rect x="335" y="14" width="150" height="32" rx="6" fill="#1a0a00" stroke="#f5820d" stroke-width="1.8"/>
+      <text x="410" y="35" font-family="monospace" font-weight="700" font-size="12" fill="#f5820d" text-anchor="middle">START</text>
+      <rect x="492" y="17" width="72" height="14" rx="7" fill="none" stroke="#4fc3f7" stroke-width="1"/>
+      <text x="528" y="27" font-family="monospace" font-size="7.5" fill="#4fc3f7" text-anchor="middle">BLE advertising</text>
+
+      <!-- PIN display -->
+      <rect x="335" y="92" width="150" height="32" rx="6" fill="#1a0a00" stroke="#f5820d" stroke-width="1.8"/>
+      <text x="410" y="113" font-family="monospace" font-weight="700" font-size="12" fill="#f5820d" text-anchor="middle">PIN display</text>
+      <rect x="492" y="95" width="72" height="14" rx="7" fill="none" stroke="#4fc3f7" stroke-width="1"/>
+      <text x="528" y="105" font-family="monospace" font-size="7.5" fill="#4fc3f7" text-anchor="middle">host confirms</text>
+
+      <!-- LOCK -->
+      <rect x="125" y="182" width="150" height="32" rx="6" fill="#0a0a1a" stroke="#888" stroke-width="1.5"/>
+      <text x="200" y="203" font-family="monospace" font-weight="700" font-size="12" fill="#ccc" text-anchor="middle">LOCK</text>
+      <rect x="282" y="185" width="46" height="14" rx="7" fill="none" stroke="#555" stroke-width="1"/>
+      <text x="305" y="195" font-family="monospace" font-size="7.5" fill="#555" text-anchor="middle">local only</text>
+
+      <!-- SET_PIN -->
+      <rect x="545" y="182" width="150" height="32" rx="6" fill="#0a0a1a" stroke="#888" stroke-width="1.5"/>
+      <text x="620" y="203" font-family="monospace" font-weight="700" font-size="12" fill="#ccc" text-anchor="middle">SET_PIN</text>
+      <rect x="702" y="185" width="46" height="14" rx="7" fill="none" stroke="#555" stroke-width="1"/>
+      <text x="725" y="195" font-family="monospace" font-size="7.5" fill="#555" text-anchor="middle">local only</text>
+
+      <!-- ACCOUNT_SELECTION -->
+      <rect x="125" y="284" width="150" height="32" rx="6" fill="#1a0a00" stroke="#f5820d" stroke-width="1.8"/>
+      <text x="200" y="305" font-family="monospace" font-weight="700" font-size="10" fill="#f5820d" text-anchor="middle">ACCOUNT_SEL.</text>
+      <rect x="282" y="287" width="72" height="14" rx="7" fill="none" stroke="#f5820d" stroke-width="1"/>
+      <text x="318" y="297" font-family="monospace" font-size="7.5" fill="#f5820d" text-anchor="middle">⌨ types creds</text>
+
+      <!-- WIFI_ADMIN -->
+      <rect x="545" y="284" width="150" height="32" rx="6" fill="#001a00" stroke="#66bb6a" stroke-width="1.8"/>
+      <text x="620" y="305" font-family="monospace" font-weight="700" font-size="12" fill="#66bb6a" text-anchor="middle">WIFI_ADMIN</text>
+      <rect x="702" y="287" width="72" height="14" rx="7" fill="none" stroke="#66bb6a" stroke-width="1"/>
+      <text x="738" y="297" font-family="monospace" font-size="7.5" fill="#66bb6a" text-anchor="middle">WiFi browser</text>
+
+      <!-- SERIAL_ADMIN -->
+      <rect x="545" y="365" width="150" height="32" rx="6" fill="#001a1a" stroke="#4fc3f7" stroke-width="1.8"/>
+      <text x="620" y="386" font-family="monospace" font-weight="700" font-size="11" fill="#4fc3f7" text-anchor="middle">SERIAL_ADMIN</text>
+      <rect x="702" y="368" width="72" height="14" rx="7" fill="none" stroke="#4fc3f7" stroke-width="1"/>
+      <text x="738" y="378" font-family="monospace" font-size="7.5" fill="#4fc3f7" text-anchor="middle">USB 115200</text>
+
+    </svg>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 12 — WIFI ADMIN
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-12">
+    <div class="eyebrow">Chapter 6 — Management</div>
+    <h2>WiFi Admin Interface</h2>
+    <div class="divider"></div>
+    <p style="margin-bottom:30px;">
+      Managing credentials on a tiny screen with two buttons would be painful.
+      So ESPWV32 creates its own WiFi hotspot — connect your phone or laptop
+      and manage everything through a web UI.
+    </p>
+    <div class="cards">
+      <div class="card">
+        <span class="icon">📶</span>
+        <h3>Local AP</h3>
+        <p>Creates <code>ESPWV32-Admin</code> hotspot. No internet connection. No cloud.</p>
+      </div>
+      <div class="card">
+        <span class="icon">🌐</span>
+        <h3>Captive Portal</h3>
+        <p>Built-in DNS server redirects everything to the admin web interface.</p>
+      </div>
+      <div class="card">
+        <span class="icon">✏️</span>
+        <h3>Full CRUD</h3>
+        <p>Add, edit, delete credential slots. Change PIN. Rotate WiFi password.</p>
+      </div>
+      <div class="card">
+        <span class="icon">🔒</span>
+        <h3>PIN Protected</h3>
+        <p>Admin session requires your device PIN. Credentials stay encrypted throughout.</p>
+      </div>
+    </div>
+
+    <div class="photos" style="margin-top:28px; gap:24px; align-items:flex-start;">
+      <div class="photo-frame" style="width:160px; border-radius:16px; border-color:#333;">
+        <img src="../IMG_7490.PNG" alt="Edit credential slot" style="border-radius:14px 14px 0 0;">
+        <div class="photo-caption">Edit credential slot</div>
+      </div>
+      <div class="photo-frame" style="width:160px; border-radius:16px; border-color:#333;">
+        <img src="../IMG_7489.PNG" alt="Settings — PIN &amp; WiFi password" style="border-radius:14px 14px 0 0;">
+        <div class="photo-caption">Settings — PIN &amp; WiFi password</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 12b — NICE TO HAVE FEATURES
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-12b">
+    <div class="eyebrow">Chapter 6 — Polish</div>
+    <h2>The details that matter</h2>
+    <div class="divider"></div>
+    <div class="cards" style="max-width:1100px;">
+
+      <div class="card">
+        <span class="icon">🌙</span>
+        <h3>Screen dimming</h3>
+        <p>Automatically dims after 15 s idle, turns off at 30 s. Any button press restores full brightness instantly. Disabled in admin modes.</p>
+      </div>
+
+      <div class="card">
+        <span class="icon">🔀</span>
+        <h3>WiFi password randomisation</h3>
+        <p>The admin hotspot password is auto-generated on first boot and can be regenerated from the web UI — no static, guessable password.</p>
+      </div>
+
+      <div class="card">
+        <span class="icon">🔋</span>
+        <h3>Battery indicator</h3>
+        <p>Live percentage shown on every screen, updated every 30 s. Turns red below 30 %. Shows a lightning bolt while charging.</p>
+      </div>
+
+      <div class="card">
+        <span class="icon">📡</span>
+        <h3>BLE / WiFi coexistence</h3>
+        <p>Classic Bluetooth memory is released at boot to free heap. BLE gets radio priority at startup; WiFi coexistence is negotiated when the admin AP starts.</p>
+      </div>
+
+      <div class="card">
+        <span class="icon">💾</span>
+        <h3>Adaptive EEPROM sizing</h3>
+        <p>Probes the largest flash page the ESP32 library supports, halving until it succeeds — maximising credential slots on any board variant.</p>
+      </div>
+
+      <div class="card">
+        <span class="icon">🔁</span>
+        <h3>Credential send modes</h3>
+        <p>Toggle between sending username+password, username only, or password only with a medium button press — without disconnecting.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 13 — ARCHITECTURE
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-13">
+    <div class="eyebrow">Chapter 6 — Architecture</div>
+    <h2>System overview</h2>
+    <div class="divider"></div>
+    <div class="flow" style="flex-direction:column; gap:0;">
+      <div style="display:flex; gap:20px; align-items:center; justify-content:center; flex-wrap:wrap;">
+        <div class="flow-box" style="border-color:var(--blue); color:var(--blue);">📱 Host Device<br><small style="color:var(--muted);">PC / Phone / Tablet</small></div>
+        <div class="flow-arrow">⟷</div>
+        <div class="flow-box" style="border-color:var(--orange); color:var(--orange); padding:20px 30px;">
+          <strong>ESPWV32</strong><br>
+          <small style="color:var(--muted);">M5StickC ESP32</small>
+        </div>
+        <div class="flow-arrow">⟷</div>
+        <div class="flow-box" style="border-color:var(--green); color:var(--green);">💻 Admin Browser<br><small style="color:var(--muted);">WiFi AP (local)</small></div>
+      </div>
+      <div style="margin-top:8px; color:var(--muted); font-size:0.8rem; letter-spacing:1px;">BLE HID (keyboard output) &nbsp;|&nbsp; WiFi AP (admin only)</div>
+    </div>
+    <div class="pill-row" style="margin-top:32px;">
+      <span class="pill orange">BLE HID Keyboard</span>
+      <span class="pill blue">AES-256 EEPROM</span>
+      <span class="pill green">WiFi Captive Portal</span>
+      <span class="pill red">PBKDF2 PIN Check</span>
+      <span class="pill" style="border-color:#999; color:#999;">Screen State Machine</span>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 14 — WHAT'S NEXT
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-14">
+    <div class="eyebrow">Chapter 7 — The Road Ahead</div>
+    <h2>What's next</h2>
+    <div class="divider"></div>
+    <div class="cards">
+      <div class="card">
+        <span class="icon">🛡️</span>
+        <h3>TOTP (2FA Codes)</h3>
+        <p>Generate time-based one-time passwords directly on the device — no phone needed.</p>
+      </div>
+      <div class="card">
+        <span class="icon">🔁</span>
+        <h3>Secure Backup</h3>
+        <p>Encrypted export and import — device-to-device migration without cloud exposure.</p>
+      </div>
+      <div class="card" style="border-color:var(--orange);">
+        <span class="icon">💬</span>
+        <h3 style="color:var(--orange);">Your idea here</h3>
+        <p>Have a feature in mind? Open an issue on GitHub — all suggestions welcome.</p>
+        <a href="https://github.com/Joengenduvel/espwv32/issues" target="_blank"
+           style="display:inline-block; margin-top:12px; font-size:0.85rem;
+                  color:var(--orange); text-decoration:none; border:1px solid var(--orange);
+                  border-radius:100px; padding:6px 16px;">
+          + Add feature request
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 15 — CLOSING
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-15">
+    <div class="eyebrow">Takeaway</div>
+    <h1>From <span class="accent">ice cream</span><br>to <span class="blue">encryption</span></h1>
+    <div class="divider"></div>
+    <p class="big-text" style="margin: 0 auto 36px;">
+      A silly office prank turned into a real question:<br>
+      <em>"What can a tiny microcontroller actually protect?"</em>
+    </p>
+    <div class="pill-row">
+      <span class="pill orange">Open Source</span>
+      <span class="pill blue">~€20 Hardware</span>
+      <span class="pill green">No Cloud</span>
+      <span class="pill red">No Dependencies</span>
+    </div>
+    <p style="margin-top:32px; color:var(--muted); font-size:0.9rem; letter-spacing:1px;">
+      github.com/Joengenduvel/espwv32
+    </p>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────
+       SLIDE 16 — GLOSSARY
+       ──────────────────────────────────────────────────────────────────── -->
+  <section class="slide" id="slide-16" style="padding:36px 60px; justify-content:flex-start;">
+    <div class="eyebrow">Reference</div>
+    <h2>Glossary</h2>
+    <div class="divider"></div>
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px 32px; width:100%; max-width:1100px; margin-top:16px; text-align:left;">
+
+      <!-- Security / Crypto -->
+      <div style="grid-column:1/-1; margin:8px 0 2px;">
+        <span style="font-size:0.7rem; letter-spacing:2px; text-transform:uppercase; color:var(--muted);">Security &amp; Cryptography</span>
+      </div>
+
+      <div class="glossary-row"><span class="gl-term">AES</span><span class="gl-def">Advanced Encryption Standard — symmetric block cipher used to encrypt credential slots at rest.</span></div>
+      <div class="glossary-row"><span class="gl-term">AES-256-CBC</span><span class="gl-def">AES with a 256-bit key in Cipher Block Chaining mode — each block's ciphertext depends on the previous.</span></div>
+      <div class="glossary-row"><span class="gl-term">CBC</span><span class="gl-def">Cipher Block Chaining — AES mode where each plaintext block is XOR'd with the previous ciphertext block before encryption.</span></div>
+      <div class="glossary-row"><span class="gl-term">ECDH</span><span class="gl-def">Elliptic Curve Diffie-Hellman — key agreement protocol used during BLE LE Secure Connections pairing.</span></div>
+      <div class="glossary-row"><span class="gl-term">HMAC</span><span class="gl-def">Hash-based Message Authentication Code — used inside PBKDF2 to stretch and verify the PIN.</span></div>
+      <div class="glossary-row"><span class="gl-term">IV</span><span class="gl-def">Initialization Vector — a non-secret random value that ensures identical plaintexts produce different ciphertexts in CBC mode.</span></div>
+      <div class="glossary-row"><span class="gl-term">LTK</span><span class="gl-def">Long Term Key — the shared secret stored after a successful BLE pairing, used to re-encrypt future connections without re-pairing.</span></div>
+      <div class="glossary-row"><span class="gl-term">MITM</span><span class="gl-def">Man-In-The-Middle — an attack where a third party secretly intercepts communication between two parties.</span></div>
+      <div class="glossary-row"><span class="gl-term">P-256</span><span class="gl-def">NIST P-256 (secp256r1) — the elliptic curve used in BLE LE Secure Connections ECDH key exchange.</span></div>
+      <div class="glossary-row"><span class="gl-term">PBKDF2</span><span class="gl-def">Password-Based Key Derivation Function 2 — applies HMAC-SHA256 thousands of times to make PIN brute-force computationally expensive.</span></div>
+      <div class="glossary-row"><span class="gl-term">SC</span><span class="gl-def">Secure Connections — BLE LE pairing mode based on ECDH P-256 that provides forward secrecy and MITM protection.</span></div>
+      <div class="glossary-row"><span class="gl-term">SHA-256</span><span class="gl-def">Secure Hash Algorithm (256-bit digest) — used inside PBKDF2-HMAC-SHA256 to hash the PIN verifier.</span></div>
+
+      <!-- Bluetooth / HID -->
+      <div style="grid-column:1/-1; margin:10px 0 2px;">
+        <span style="font-size:0.7rem; letter-spacing:2px; text-transform:uppercase; color:var(--muted);">Bluetooth &amp; HID</span>
+      </div>
+
+      <div class="glossary-row"><span class="gl-term">BLE</span><span class="gl-def">Bluetooth Low Energy — low-power wireless protocol used by ESPWV32 to act as a keyboard.</span></div>
+      <div class="glossary-row"><span class="gl-term">HID</span><span class="gl-def">Human Interface Device — USB/BLE class for keyboards, mice, and gamepads. No custom driver required.</span></div>
+      <div class="glossary-row"><span class="gl-term">6KRO</span><span class="gl-def">6-Key Rollover — the keyboard report supports up to 6 simultaneous keycodes in bytes 2–7.</span></div>
+      <div class="glossary-row"><span class="gl-term">LE</span><span class="gl-def">Low Energy — the "LE" in BLE; refers to the Bluetooth 4.0+ subset optimised for battery-powered devices.</span></div>
+
+      <!-- Hardware / Networking -->
+      <div style="grid-column:1/-1; margin:10px 0 2px;">
+        <span style="font-size:0.7rem; letter-spacing:2px; text-transform:uppercase; color:var(--muted);">Hardware &amp; Networking</span>
+      </div>
+
+      <div class="glossary-row"><span class="gl-term">AP</span><span class="gl-def">Access Point — the WiFi hotspot ESPWV32 creates (SSID: ESPWV32-Admin) for the web admin interface.</span></div>
+      <div class="glossary-row"><span class="gl-term">DNS</span><span class="gl-def">Domain Name System — ESPWV32 runs a DNS server on the AP to redirect all hostnames to the captive portal.</span></div>
+      <div class="glossary-row"><span class="gl-term">EEPROM</span><span class="gl-def">Electrically Erasable Programmable Read-Only Memory — flash-backed storage on the ESP32 used to persist encrypted credentials.</span></div>
+      <div class="glossary-row"><span class="gl-term">ESP32</span><span class="gl-def">Espressif Systems 32 — dual-core Xtensa LX6 SoC with integrated WiFi and Bluetooth, the heart of the M5StickC.</span></div>
+      <div class="glossary-row"><span class="gl-term">SoC</span><span class="gl-def">System on a Chip — a single integrated circuit containing CPU, RAM, flash, WiFi, and Bluetooth (e.g. the ESP32).</span></div>
+      <div class="glossary-row"><span class="gl-term">SSID</span><span class="gl-def">Service Set Identifier — the human-readable name of a WiFi network; ESPWV32 broadcasts "ESPWV32-Admin".</span></div>
+      <div class="glossary-row"><span class="gl-term">USB</span><span class="gl-def">Universal Serial Bus — used for the serial admin connection (115200 baud) and device charging.</span></div>
+      <div class="glossary-row"><span class="gl-term">8N1</span><span class="gl-def">8 data bits, No parity, 1 stop bit — the serial framing used by the ESPWV32 serial admin interface.</span></div>
+
+      <!-- Other -->
+      <div style="grid-column:1/-1; margin:10px 0 2px;">
+        <span style="font-size:0.7rem; letter-spacing:2px; text-transform:uppercase; color:var(--muted);">Other</span>
+      </div>
+
+      <div class="glossary-row"><span class="gl-term">COM</span><span class="gl-def">Component Object Model — Windows API used by the Icecriminator to script Outlook via PowerShell.</span></div>
+      <div class="glossary-row"><span class="gl-term">CRUD</span><span class="gl-def">Create, Read, Update, Delete — the four basic data operations supported by the WiFi admin web interface.</span></div>
+      <div class="glossary-row"><span class="gl-term">PIN</span><span class="gl-def">Personal Identification Number — the 4-digit code used to unlock ESPWV32 and decrypt the credential store.</span></div>
+      <div class="glossary-row"><span class="gl-term">TOTP</span><span class="gl-def">Time-based One-Time Password — a planned feature to generate 2FA codes directly on the device (RFC 6238).</span></div>
+      <div class="glossary-row"><span class="gl-term">WebAuthn</span><span class="gl-def">Web Authentication API — a phishing-resistant standard (FIDO2) that eliminates passwords via hardware-bound keys.</span></div>
+
+    </div>
+  </section>
+
+</div>
+
+<!-- ── Progress + nav ─────────────────────────────────────────────────── -->
+<div id="progress"></div>
+<span id="slide-counter"></span>
+<button class="nav" id="nav-prev" onclick="go(-1)">&#8592;</button>
+<button class="nav" id="nav-next" onclick="go(+1)">&#8594;</button>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const total  = slides.length;
+  let   cur    = 0;
+
+  function show(n) {
+    slides[cur].classList.remove('active');
+    cur = Math.max(0, Math.min(n, total - 1));
+    slides[cur].classList.add('active');
+    document.getElementById('progress').style.width =
+      ((cur + 1) / total * 100) + '%';
+    document.getElementById('slide-counter').textContent =
+      (cur + 1) + ' / ' + total;
+  }
+
+  function go(delta) { show(cur + delta); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'ArrowDown')
+      go(+1);
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp')
+      go(-1);
+  });
+
+  // Touch swipe
+  let tx = 0;
+  document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; });
+  document.addEventListener('touchend',   e => {
+    const dx = e.changedTouches[0].clientX - tx;
+    if (Math.abs(dx) > 50) go(dx < 0 ? +1 : -1);
+  });
+
+  show(0);
+</script>
+
+</body>
+</html>

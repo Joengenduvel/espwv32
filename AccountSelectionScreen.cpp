@@ -51,16 +51,19 @@ class AccountSelectionScreen: public GenericScreen {
           _keyboard->print(_currentAccount.username);
           _keyboard->print("\t");
           _keyboard->println(_currentAccount.password);
+          _keyboard->releaseAll();
           Serial.print(_currentAccount.username);
           Serial.print("\t");
           Serial.println(_currentAccount.password);
           break;
         case USERNAME:
           _keyboard->print(_currentAccount.username);
+          _keyboard->releaseAll();
           Serial.print(_currentAccount.username);
           break;
         case PASSWORD:
           _keyboard->print(_currentAccount.password);
+          _keyboard->releaseAll();
           Serial.print(_currentAccount.password);
           break;
       }
